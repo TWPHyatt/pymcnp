@@ -1,0 +1,43 @@
+[build-system]
+requires = [
+    "setuptools>=42",
+    "build"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pymcnp"
+version = "0.0.1"
+description = "Geometry package for high energy physics (Geant4, Fluka)"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+authors = [{ name = "Stewart T. Boogert", email = "stewart.boogert@rhul.ac.uk" }]
+maintainers = [{ name = "Stewart T. Boogert", email = "stewart.boogert@rhul.ac.uk"  }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development",
+]
+requires-python = ">=3.6.8"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "scipy",
+    "pyg4ometry"
+]
+
+
+[project.urls]
+Homepage = "https://github.com/g4edge/pyg4ometry"
+Documentation = "https://pyg4ometry.readthedocs.io/"
+"Bug Tracker" = "https://github.com/g4edge/pyg4ometry/issues"
+
