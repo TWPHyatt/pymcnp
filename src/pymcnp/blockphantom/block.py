@@ -57,24 +57,35 @@ class Block:
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeF7))
 
         # connector holes back
-        holeB1 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeB2 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeB3 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeB4 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeB5 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeB6 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeB7 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-
+        holeB1 = pyg4ometry.mcnp.RCC(-unit, +unit*2, -(z+small)/2, 0, 0, 1+(small/2), 0.4)  # top left
+        holeB2 = pyg4ometry.mcnp.RCC(+unit, +unit*2, -(z+small)/2, 0, 0, 1+(small/2), 0.4)  # top right
+        holeB3 = pyg4ometry.mcnp.RCC(-unit, 0, -(z+small)/2, 0, 0, 1+(small/2), 0.4)  # middle left
+        holeB4 = pyg4ometry.mcnp.RCC(0, 0, -(z+small)/2, 0, 0, 1+(small/2), 0.4)  # middle center
+        holeB5 = pyg4ometry.mcnp.RCC(+unit, 0, -(z+small)/2, 0, 0, 1+(small/2), 0.4)  # middle right
+        holeB6 = pyg4ometry.mcnp.RCC(-unit, -unit*2, -(z+small)/2, 0, 0, 1+(small/2), 0.4)  # bottom left
+        holeB7 = pyg4ometry.mcnp.RCC(+unit, -unit*2, -(z+small)/2, 0, 0, 1+(small/2), 0.4)  # bottom right
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeB1))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeB2))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeB3))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeB4))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeB5))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeB6))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeB7))
 
         # connector holes left
-        holeL1 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeL2 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeL3 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-
+        holeL1 = pyg4ometry.mcnp.RCC(-x/2, +unit*2, 0, 1+(small/2), 0, 0, 0.4)  # top
+        holeL2 = pyg4ometry.mcnp.RCC(-x/2, 0, 0, 1+(small/2), 0, 0, 0.4)  # middle
+        holeL3 = pyg4ometry.mcnp.RCC(-x/2, -unit*2, 0, 1+(small/2), 0, 0, 0.4)  # bottom
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeL1))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeL2))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeL3))
 
         # connector holes right
-        holeR1 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeR2 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
-        holeR3 = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 0, 0.4)
+        holeR1 = pyg4ometry.mcnp.RCC(x/2, +unit*2, 0, -1-(small/2), 0, 0, 0.4)  # top
+        holeR2 = pyg4ometry.mcnp.RCC(x/2, 0, 0, -1-(small/2), 0, 0, 0.4)  # middle
+        holeR3 = pyg4ometry.mcnp.RCC(x/2, -unit*2, 0, -1-(small/2), 0, 0, 0.4)  # bottom
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeR1))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeR2))
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeR3))
 
         return geomBlock
