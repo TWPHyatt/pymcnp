@@ -2,25 +2,51 @@ import pyg4ometry
 
 
 class Block:
-    def __init__(self, hole):
+    def __init__(self, hole, x, y, z):
+        small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
+        unit = 5.5/2
+        # x,y,z co-ordinates of the holes, and which axis they are aligned with
+        self.holeInfo = [[[-unit, -(y+small)/2, 0], [0, 1, 0]],  # tube1, and y-aligned
+                         [[unit, -(y+small)/2, 0], [0, 1, 0]]  # tube2, and y-aligned
+                         [[], [0, 0, 1]],  # holeF1, and z-aligned
+                         [[], [0, 0, 1]],  # holeF2, and z-aligned
+                         [[], [0, 0, 1]],  # holeF3, and z-aligned
+                         [[], [0, 0, 1]],  # holeF4, and z-aligned
+                         [[], [0, 0, 1]],  # holeF5, and z-aligned
+                         [[], [0, 0, 1]],  # holeF6, and z-aligned
+                         [[], [0, 0, 1]],  # holeF7, and z-aligned
+                         [[], [0, 0, 1]],  # holeB1, and z-aligned
+                         [[], [0, 0, 1]],  # holeB2, and z-aligned
+                         [[], [0, 0, 1]],  # holeB3, and z-aligned
+                         [[], [0, 0, 1]],  # holeB4, and z-aligned
+                         [[], [0, 0, 1]],  # holeB5, and z-aligned
+                         [[], [0, 0, 1]],  # holeB6, and z-aligned
+                         [[], [0, 0, 1]],  # holeB7, and z-aligned
+                         [[], [1, 0, 0]],  # holeL1, and x-aligned
+                         [[], [1, 0, 0]],  # holeL2, and x-aligned
+                         [[], [1, 0, 0]],  # holeL3, and x-aligned
+                         [[], [1, 0, 0]],  # holeR1, and x-aligned
+                         [[], [1, 0, 0]],  # holeR2, and x-aligned
+                         [[], [1, 0, 0]],  # holeR3, and x-aligned
+                         ]
         self.hole = hole
         self.surface = None
 
+
     def makeBlock(self, hole, block=None, transform=[]):
-        gometry = self._makeBlockGeometry(11.0, 16.5, 5.5)
-        self.surface = gometry
+        self.surface = self._makeBlockGeometry(11.0, 16.5, 5.5)
+
         # transform...
         return self.surface
 
     def makeHalfBlock(self, hole, block=None, transform=[]):
-        gometry = self._makeBlockGeometry(11.0, 16.5, 2.5)
-        self.surface = gometry
+        self.surface = self._makeBlockGeometry(11.0, 16.5, 2.5)
+
         # transform...
         return self.surface
 
     def _makeBlockGeometry(self, x, y, z):
-        small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
-        unit = 5.5/2
+
 
         # polythene box
         px1 = pyg4ometry.mcnp.PX(-x/2)
@@ -89,3 +115,32 @@ class Block:
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(holeR3))
 
         return geomBlock
+
+    def _makeBlockConnection(self, block1, block2, hole1, hole2):
+        connector = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 2, 0.3)  #
+
+"""
+class Phantom
+    init(registry)
+
+    def makeBlock()
+        block1 = Block()
+        block2 = Block()
+
+    def makeConnection()
+
+Class Block
+    init
+        self.geometry = makeBlockGeometry()
+        self.connections = {'top'    : { 1 : None, 2 : None}
+                            'bottom' : { 1 : None, 2 : None}
+                            'front'  : { 1 : None, 2 : None, 3 : None, 4 : None  ... }
+                            'back'   : { 1 : None, 2 : None, 3 : None, 4 : None  ...}
+                            'left    : { 1 : None, 2 : None, 3 : None }
+                            'right   : { 1 : None, 2 : None, 3 : None }
+                            }  # points to the other block objects?
+        
+
+    
+
+"""
