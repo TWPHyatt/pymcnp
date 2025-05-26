@@ -17,7 +17,13 @@ class Block:
             msg = "Block type can only be `full` of `half`"
             raise TypeError(msg)
 
-        self.holePattern = [[False*3], [False*3], [False*3], [False*3], [False*3], [False*3]]
+        front = [True, True, True, True, True, True, True]
+        back = [True, True, True, True, True, True, True]
+        left = [True, True, True]
+        right = [True, True, True]
+        top = [True, True]
+        bottom = [True, True]
+        self.holePattern = [front, back, left, right, top, bottom]
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1]/(3*2)  # hole separation unit on the surface of the block
         # HoleInfo is the [xyz co-ordinates, xyz axis-vector] for each hole of a block
@@ -192,10 +198,15 @@ class Block:
                 raise TypeError(msg)
             trans = translation
 
+        # transformed block is prime
+        surfaces_p = []
         for surface in self.surfaces:  # do the transformation
-            surface.transform(rotation=rot, translation=trans)
+            surfaces_p.append(surface.transform(rotation=rot, translation=trans))
 
-        return Block(self.blockType, self.position)
+        block_p = Block(self.blockType, self.blockNumber, self.position)
+        block_p.surfaces = surfaces_p
+        block_p.geometry = block_p._makeGeometry(block_p.surfaces)
+        return block_p
 
     def addToRegistry(self, registry, replace=False):
         for surface in self.surfaces:
