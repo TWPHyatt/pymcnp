@@ -1,14 +1,11 @@
 import pyg4ometry
 import numpy as _np
 
+
 class Block:
-    def __init__(self, blockType, blockNumber=None, position=None):
+    def __init__(self, blockType, position=None, cellNumber=None):
         self.blockType = blockType
         self.dim = [0, 0, 0]  # dimensions [width in x, height in y, depth in z]
-        if position is None:
-            self.position = [0, 0, 0]  # first block is centered on the origin
-        else:
-            self.position = position
         if blockType == "full":
             self.dim = [11.0, 16.5, 5.5]  # cm
         elif blockType == "half":
@@ -16,92 +13,101 @@ class Block:
         else:
             msg = "Block type can only be `full` of `half`"
             raise TypeError(msg)
+        self.position = position
+        if position is None:
+            self.position = [0, 0, 0]  # first block is centered on the origin
 
-        front = [True, True, True, True, True, True, True]
-        back = [True, True, True, True, True, True, True]
-        left = [True, True, True]
-        right = [True, True, True]
-        top = [True, True]
-        bottom = [True, True]
-        self.holePattern = [front, back, left, right, top, bottom]
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
-        self.unit = self.dim[1]/(3*2)  # hole separation unit on the surface of the block
+        self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
         # HoleInfo is the [xyz co-ordinates, xyz axis-vector] for each hole of a block
-        self.holeInfo = [[[-self.unit, -(self.dim[1]+self.small)/2, 0], [0, self.dim[1]+self.small, 0]],       # tube1
-                         [[+self.unit, -(self.dim[1]+self.small)/2, 0], [0, self.dim[1]+self.small, 0]],       # tube2
-                         [[-self.unit, +self.unit*2, (self.dim[2]+self.small)/2], [0, 0, -1-(self.small/2)]],  # holeF1
-                         [[+self.unit, +self.unit*2, (self.dim[2]+self.small)/2], [0, 0, -1-(self.small/2)]],  # holeF2
-                         [[-self.unit, 0, (self.dim[2]+self.small)/2], [0, 0, -1-(self.small/2)]],             # holeF3
-                         [[0, 0, (self.dim[2]+self.small)/2], [0, 0, -1-(self.small/2)]],                      # holeF4
-                         [[+self.unit, 0, (self.dim[2]+self.small)/2], [0, 0, -1-(self.small/2)]],             # holeF5
-                         [[-self.unit, -self.unit*2, (self.dim[2]+self.small)/2], [0, 0, -1-(self.small/2)]],  # holeF6
-                         [[+self.unit, -self.unit*2, (self.dim[2]+self.small)/2], [0, 0, -1-(self.small/2)]],  # holeF7
-                         [[-self.unit, +self.unit*2, -(self.dim[2]+self.small)/2], [0, 0, 1+(self.small/2)]],  # holeB1
-                         [[+self.unit, +self.unit*2, -(self.dim[2]+self.small)/2], [0, 0, 1+(self.small/2)]],  # holeB2
-                         [[-self.unit, 0, -(self.dim[2]+self.small)/2], [0, 0, 1+(self.small/2)]],             # holeB3
-                         [[0, 0, -(self.dim[2]+self.small)/2], [0, 0, 1+(self.small/2)]],                      # holeB4
-                         [[+self.unit, 0, -(self.dim[2]+self.small)/2], [0, 0, 1+(self.small/2)]],             # holeB5
-                         [[-self.unit, -self.unit*2, -(self.dim[2]+self.small)/2], [0, 0, 1+(self.small/2)]],  # holeB6
-                         [[+self.unit, -self.unit*2, -(self.dim[2]+self.small)/2], [0, 0, 1+(self.small/2)]],  # holeB7
-                         [[-self.dim[0]/2, +self.unit*2, 0], [1+(self.small/2), 0, 0]],                        # holeL1
-                         [[-self.dim[0]/2, 0, 0], [1+(self.small/2), 0, 0]],                                   # holeL2
-                         [[-self.dim[0]/2, -self.unit*2, 0], [1+(self.small/2), 0, 0]],                        # holeL3
-                         [[self.dim[0]/2, +self.unit*2, 0], [-1-(self.small/2), 0, 0]],                        # holeR1
-                         [[self.dim[0]/2, 0, 0], [-1-(self.small/2), 0, 0]],                                   # holeR2
-                         [[self.dim[0]/2, -self.unit*2, 0], [-1-(self.small/2), 0, 0]],                        # holeR3
+        self.holeInfo = [[[-self.unit, -(self.dim[1] + self.small) / 2, 0], [0, self.dim[1] + self.small, 0]],  # tube1
+                         [[+self.unit, -(self.dim[1] + self.small) / 2, 0], [0, self.dim[1] + self.small, 0]],  # tube2
+                         [[-self.dim[0] / 2, +self.unit * 2, 0], [1 + (self.small / 2), 0, 0]],  # holeL1
+                         [[-self.dim[0] / 2, 0, 0], [1 + (self.small / 2), 0, 0]],  # holeL2
+                         [[-self.dim[0] / 2, -self.unit * 2, 0], [1 + (self.small / 2), 0, 0]],  # holeL3
+                         [[self.dim[0] / 2, +self.unit * 2, 0], [-1 - (self.small / 2), 0, 0]],  # holeR1
+                         [[self.dim[0] / 2, 0, 0], [-1 - (self.small / 2), 0, 0]],  # holeR2
+                         [[self.dim[0] / 2, -self.unit * 2, 0], [-1 - (self.small / 2), 0, 0]],  # holeR3
+                         [[-self.unit, +self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],
+                         # holeF1
+                         [[+self.unit, +self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],
+                         # holeF2
+                         [[-self.unit, 0, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],  # holeF3
+                         [[0, 0, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],  # holeF4
+                         [[+self.unit, 0, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],  # holeF5
+                         [[-self.unit, -self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],
+                         # holeF6
+                         [[+self.unit, -self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],
+                         # holeF7
                          ]
+        if self.blockType == "full":
+            self.holeInfo.append(
+                [[-self.unit, +self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB1
+            self.holeInfo.append(
+                [[+self.unit, +self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB2
+            self.holeInfo.append(
+                [[-self.unit, 0, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB3
+            self.holeInfo.append([[0, 0, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB4
+            self.holeInfo.append(
+                [[+self.unit, 0, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB5
+            self.holeInfo.append(
+                [[-self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB6
+            self.holeInfo.append(
+                [[+self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB7
 
         self.surfaces = self._makeSurfaces(*self.dim)
         self.geometry = self._makeGeometry(self.surfaces)
-        self.blockNumber = blockNumber  # cell number
+        self.cellNumber = cellNumber  # cell number
 
-    def getHolePos(self, holeNum):
-        if holeNum < 0 or holeNum > 21:
+    def getHole(self, holeNumber):
+        if holeNumber < 0 or holeNumber > 21:
             msg = "There are 22 holes per block. Please chose a hole number between 0 and 21."
             raise TypeError(msg)
-        return self.holeInfo[holeNum][0]
+        return self.holeInfo[holeNumber]  # [0] position, [1] vector (orientation and height)
 
     def _makeSurfaces(self, x, y, z):
         surfaces = []
         # polythene box
-        surfaces.append(pyg4ometry.mcnp.PX(-x/2))  # px1
-        surfaces.append(pyg4ometry.mcnp.PX(x/2))  # px2
-        surfaces.append(pyg4ometry.mcnp.PY(-y/2))  # py1
-        surfaces.append(pyg4ometry.mcnp.PY(y/2))  # py2
-        surfaces.append(pyg4ometry.mcnp.PZ(-z/2))  # pz1
-        surfaces.append(pyg4ometry.mcnp.PZ(z/2))  # pz2
+        surfaces.append(pyg4ometry.mcnp.PX(-x / 2))  # px1 (left)
+        surfaces.append(pyg4ometry.mcnp.PX(x / 2))  # px2 (right)
+        surfaces.append(pyg4ometry.mcnp.PY(-y / 2))  # py1 (bottom)
+        surfaces.append(pyg4ometry.mcnp.PY(y / 2))  # py2 (top)
+        surfaces.append(pyg4ometry.mcnp.PZ(-z / 2))  # pz1 (back)
+        surfaces.append(pyg4ometry.mcnp.PZ(z / 2))  # pz2 (front)
 
         # source tubes bottom to top of block
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[0][0], *self.holeInfo[0][1], 0.4))  # left tube
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[1][0], *self.holeInfo[1][1], 0.4))  # right tube
 
-        # connector holes front
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[2][0], *self.holeInfo[2][1], 0.4))  # front top left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[3][0], *self.holeInfo[3][1], 0.4))  # front top right
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[4][0], *self.holeInfo[4][1], 0.4))  # front middle left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[5][0], *self.holeInfo[5][1], 0.4))  # front middle center
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[6][0], *self.holeInfo[6][1], 0.4))  # front middle right
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[7][0], *self.holeInfo[7][1], 0.4))  # front bottom left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[8][0], *self.holeInfo[8][1], 0.4))  # front bottom right
-
-        # connector holes back
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[9][0], *self.holeInfo[9][1], 0.4))    # back top left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[10][0], *self.holeInfo[10][1], 0.4))  # back top right
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[11][0], *self.holeInfo[11][1], 0.4))  # back middle left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[12][0], *self.holeInfo[12][1], 0.4))  # back middle center
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[13][0], *self.holeInfo[13][1], 0.4))  # back middle right
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[14][0], *self.holeInfo[14][1], 0.4))  # back bottom left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[15][0], *self.holeInfo[15][1], 0.4))  # back bottom right
-
         # connector holes left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[16][0], *self.holeInfo[16][1], 0.4))  # left-side top
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[17][0], *self.holeInfo[17][1], 0.4))  # left-side middle
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[18][0], *self.holeInfo[18][1], 0.4))  # left-side bottom
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[2][0], *self.holeInfo[2][1], 0.4))  # left-side top
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[3][0], *self.holeInfo[3][1], 0.4))  # left-side middle
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[4][0], *self.holeInfo[4][1], 0.4))  # left-side bottom
 
         # connector holes right
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[19][0], *self.holeInfo[19][1], 0.4))  # right-side top
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[20][0], *self.holeInfo[20][1], 0.4))  # right-side middle
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[21][0], *self.holeInfo[21][1], 0.4))  # right-side bottom
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[5][0], *self.holeInfo[5][1], 0.4))  # right-side top
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[6][0], *self.holeInfo[6][1], 0.4))  # right-side middle
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[7][0], *self.holeInfo[7][1], 0.4))  # right-side bottom
+
+        # connector holes front
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[8][0], *self.holeInfo[8][1], 0.4))  # front top left
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[9][0], *self.holeInfo[9][1], 0.4))  # front top right
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[10][0], *self.holeInfo[10][1], 0.4))  # front middle left
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[11][0], *self.holeInfo[11][1], 0.4))  # front middle center
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[12][0], *self.holeInfo[12][1], 0.4))  # front middle right
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[13][0], *self.holeInfo[13][1], 0.4))  # front bottom left
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[14][0], *self.holeInfo[14][1], 0.4))  # front bottom right
+
+        if self.blockType == "full":
+            # connector holes back
+            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[15][0], *self.holeInfo[15][1], 0.4))  # back top left
+            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[16][0], *self.holeInfo[16][1], 0.4))  # back top right
+            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[17][0], *self.holeInfo[17][1], 0.4))  # back middle left
+            surfaces.append(
+                pyg4ometry.mcnp.RCC(*self.holeInfo[18][0], *self.holeInfo[18][1], 0.4))  # back middle center
+            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[19][0], *self.holeInfo[19][1], 0.4))  # back middle right
+            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[20][0], *self.holeInfo[20][1], 0.4))  # back bottom left
+            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[21][0], *self.holeInfo[21][1], 0.4))  # back bottom right
 
         return surfaces
 
@@ -116,33 +122,34 @@ class Block:
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[6]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[7]))
 
-        # connector holes front
+        # connector holes left
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[8]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[9]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[10]))
+
+        # connector holes right
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[11]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[12]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[13]))
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[14]))
 
-        # connector holes back
+        # connector holes front
+        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[14]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[15]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[16]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[17]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[18]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[19]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[20]))
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[21]))
 
-        # connector holes left
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[22]))
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[23]))
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[24]))
-
-        # connector holes right
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[25]))
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[26]))
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[27]))
+        if self.blockType == "full":
+            # connector holes back
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[21]))
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[22]))
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[23]))
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[24]))
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[25]))
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[26]))
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[27]))
 
         return geomBlock
 
@@ -203,15 +210,58 @@ class Block:
         for surface in self.surfaces:  # do the transformation
             surfaces_p.append(surface.transform(rotation=rot, translation=trans))
 
-        block_p = Block(self.blockType, self.blockNumber, self.position)
+        block_p = Block(blockType=self.blockType, position=self.position, cellNumber=self.cellNumber)
         block_p.surfaces = surfaces_p
         block_p.geometry = block_p._makeGeometry(block_p.surfaces)
         return block_p
 
     def addToRegistry(self, registry, replace=False):
-        for surface in self.surfaces:
-            registry.addSurface(surface, replace=replace)
-        return Block(self.blockType, self.position, )
+        registry.addCell(self, replace=replace)
 
-    def _makeBlockConnection(self, block1, block2, hole1, hole2):
-        connector = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, 2, 0.3)  #
+    def connectBlock(self, hole1, hole2):
+        """
+        hole1: where on ANOTHER block to connect this block to EG. blockOther.getHolePosition(hole=3)
+        hole2: where on THIS block to connect this block to EG. blockThis.getHolePosition(hole=3)
+        """
+        print("h1: ", hole1)
+        print("h2: ", hole2)
+        # check if two holes are oriented opposite directions
+        h1 = _np.array(hole1[1])
+        h2 = _np.array(hole2[1])
+        h1Norm = h1 / _np.linalg.norm(hole1[1])
+        h2Norm = h2 / _np.linalg.norm(hole2[1])
+
+        if _np.abs(_np.dot(h1Norm, h2Norm)) < 1e-6:
+            # hole1 and hole2 are opposite
+            rot = [0, 0, 0]
+        else:
+            # hole1 and hole2 are not opposite
+            # the target is normalised hole1 vector scaled to match hole2 vector magnitude
+            target = -h1Norm * _np.linalg.norm(h2)
+            h2_p = [0, 0, 0]
+            rot = [0, 0, 0]
+
+            for ix in range(4):
+                for iy in range(4):
+                    for iz in range(4):
+                        for a in range(ix):
+                            h2_p = [h2[0], -h2[2], h2[1]]
+                        for b in range(iy):
+                            h2_p = [h2_p[0], -h2_p[2], h2_p[1]]
+                        for c in range(iz):
+                            h2_p = [h2_p[0], -h2_p[2], h2_p[1]]
+                        if _np.allclose(h2_p, target):
+                            rot = [ix, iy, iz]
+                        else:
+                            rot = [0, 0, 0]
+        block_p = self.transform(rotation=rot, translation=hole1[0])
+        block_p = self.transform(rotation=[0, 0, 0], translation=hole2[0])
+        return block_p
+
+
+class Connector:
+    def __init__(self, hole, cellNumber=None):
+        self.hole = hole
+
+        connector = pyg4ometry.mcnp.RCC(*block_p.position, *self.hole[1], 0.3)
+        block_p.geometry = pyg4ometry.mcnp.Intersection(block_p.geometry, connector)
