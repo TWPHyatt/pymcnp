@@ -234,18 +234,18 @@ class Block:
     def addToRegistry(self, registry, replace=False):
         registry.addCell(self, replace=replace)
 
-    def connectBlock(self, hole1, hole2):
+    def connectBlock(self, localHole, foreignHole):
         """
-        hole1: where on ANOTHER block to connect this block to EG. blockOther.getHolePosition(hole=3)
-        hole2: where on THIS block to connect this block to EG. blockThis.getHolePosition(hole=3)
+        localHole: where on THIS block to connect this block to EG. blockThis.getHolePosition(hole=3)
+        foreignHole: where on ANOTHER block to connect this block to EG. blockOther.getHolePosition(hole=3)
         """
-        print("h1: ", hole1)
-        print("h2: ", hole2)
+        print("h1: ", foreignHole)
+        print("h2: ", localHole)
         # check if two holes are oriented opposite directions
-        h1 = _np.array(hole1[1])
-        h2 = _np.array(hole2[1])
-        h1Norm = h1 / _np.linalg.norm(hole1[1])
-        h2Norm = h2 / _np.linalg.norm(hole2[1])
+        h1 = _np.array(foreignHole[1])
+        h2 = _np.array(localHole[1])
+        h1Norm = h1 / _np.linalg.norm(foreignHole[1])
+        h2Norm = h2 / _np.linalg.norm(localHole[1])
 
         if _np.abs(_np.dot(h1Norm, h2Norm)) < 1e-6:
             # hole1 and hole2 are opposite
@@ -271,7 +271,7 @@ class Block:
                         else:
                             rot = [0, 0, 0]
 
-        block_p = self.transform(rotation=rot, translation=hole1[0]).transform(rotation=[0, 0, 0], translation=[-el for el in hole2[0]])
+        block_p = self.transform(rotation=rot, translation=foreignHole[0]).transform(rotation=[0, 0, 0], translation=[-el for el in localHole[0]])
         return block_p
 
 
