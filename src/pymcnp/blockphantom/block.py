@@ -13,9 +13,6 @@ class Block:
         else:
             msg = "Block type can only be `full` of `half`"
             raise TypeError(msg)
-        self.position = position
-        if position is None:
-            self.position = [0, 0, 0]  # first block is centered on the origin
 
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
@@ -55,7 +52,15 @@ class Block:
             self.holeInfo.append(
                 [[+self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB7
 
-        self.surfaces = self._makeSurfaces(*self.dim)
+        if position is None:
+            self.position = [0, 0, 0]  # first block is centered on the origin
+        else:
+            self.position = position
+            for i, hInfo in enumerate(self.holeInfo):
+                for j, hCoords in enumerate(hInfo[0]):
+                    self.holeInfo[i][0][j] = hCoords + self.position[j]
+
+        self.surfaces = self._makeSurfaces()
         self.geometry = self._makeGeometry(self.surfaces)
         self.cellNumber = cellNumber  # cell number
 
@@ -65,15 +70,15 @@ class Block:
             raise TypeError(msg)
         return self.holeInfo[holeNumber]  # [0] position, [1] vector (orientation and height)
 
-    def _makeSurfaces(self, x, y, z):
+    def _makeSurfaces(self):
         surfaces = []
         # polythene box
-        surfaces.append(pyg4ometry.mcnp.PX(-x / 2))  # px1 (left)
-        surfaces.append(pyg4ometry.mcnp.PX(x / 2))  # px2 (right)
-        surfaces.append(pyg4ometry.mcnp.PY(-y / 2))  # py1 (bottom)
-        surfaces.append(pyg4ometry.mcnp.PY(y / 2))  # py2 (top)
-        surfaces.append(pyg4ometry.mcnp.PZ(-z / 2))  # pz1 (back)
-        surfaces.append(pyg4ometry.mcnp.PZ(z / 2))  # pz2 (front)
+        surfaces.append(pyg4ometry.mcnp.PX((-self.dim[0] / 2) + self.position[0]))  # px1 (left)
+        surfaces.append(pyg4ometry.mcnp.PX((self.dim[0] / 2) + self.position[0]))  # px2 (right)
+        surfaces.append(pyg4ometry.mcnp.PY((-self.dim[1] / 2) + self.position[1]))  # py1 (bottom)
+        surfaces.append(pyg4ometry.mcnp.PY((self.dim[1] / 2) + self.position[1]))  # py2 (top)
+        surfaces.append(pyg4ometry.mcnp.PZ((-self.dim[2] / 2) + self.position[2]))  # pz1 (back)
+        surfaces.append(pyg4ometry.mcnp.PZ((self.dim[2] / 2) + self.position[2]))  # pz2 (front)
 
         # source tubes bottom to top of block
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[0][0], *self.holeInfo[0][1], 0.4))  # left tube
@@ -93,7 +98,7 @@ class Block:
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[8][0], *self.holeInfo[8][1], 0.4))  # front top left
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[9][0], *self.holeInfo[9][1], 0.4))  # front top right
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[10][0], *self.holeInfo[10][1], 0.4))  # front middle left
-        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[11][0], *self.holeInfo[11][1], 0.4))  # front middle center
+        surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[11][0], *self.holeInfo[11][1], 0.4))  # front middle cent
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[12][0], *self.holeInfo[12][1], 0.4))  # front middle right
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[13][0], *self.holeInfo[13][1], 0.4))  # front bottom left
         surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[14][0], *self.holeInfo[14][1], 0.4))  # front bottom right
@@ -103,8 +108,7 @@ class Block:
             surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[15][0], *self.holeInfo[15][1], 0.4))  # back top left
             surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[16][0], *self.holeInfo[16][1], 0.4))  # back top right
             surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[17][0], *self.holeInfo[17][1], 0.4))  # back middle left
-            surfaces.append(
-                pyg4ometry.mcnp.RCC(*self.holeInfo[18][0], *self.holeInfo[18][1], 0.4))  # back middle center
+            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[18][0], *self.holeInfo[18][1], 0.4))  # back middle cent
             surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[19][0], *self.holeInfo[19][1], 0.4))  # back middle right
             surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[20][0], *self.holeInfo[20][1], 0.4))  # back bottom left
             surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[21][0], *self.holeInfo[21][1], 0.4))  # back bottom right
@@ -205,14 +209,26 @@ class Block:
                 raise TypeError(msg)
             trans = translation
 
-        # transformed block is prime
+        # new block
+        block_p = Block(blockType=self.blockType, position=self.position, cellNumber=self.cellNumber)
+
+        # override position
+        block_p.position = [self.position[0] + trans[0], self.position[1] + trans[1], self.position[2] + trans[2]]
+
+        # override holeInfo
+        for i, hInfo in enumerate(self.holeInfo):
+            for j, hCoords in enumerate(hInfo[0]):
+                block_p.holeInfo[i][0][j] = hCoords + block_p.position[j]
+
+        # override surfaces
         surfaces_p = []
         for surface in self.surfaces:  # do the transformation
             surfaces_p.append(surface.transform(rotation=rot, translation=trans))
-
-        block_p = Block(blockType=self.blockType, position=self.position, cellNumber=self.cellNumber)
         block_p.surfaces = surfaces_p
+
+        # override geometry
         block_p.geometry = block_p._makeGeometry(block_p.surfaces)
+
         return block_p
 
     def addToRegistry(self, registry, replace=False):
@@ -254,8 +270,8 @@ class Block:
                             rot = [ix, iy, iz]
                         else:
                             rot = [0, 0, 0]
-        block_p = self.transform(rotation=rot, translation=hole1[0])
-        block_p = self.transform(rotation=[0, 0, 0], translation=hole2[0])
+
+        block_p = self.transform(rotation=rot, translation=hole1[0]).transform(rotation=[0, 0, 0], translation=[-el for el in hole2[0]])
         return block_p
 
 
