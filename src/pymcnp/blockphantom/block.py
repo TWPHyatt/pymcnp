@@ -127,7 +127,7 @@ class Block:
         return geomBlock
 
     def transform(self, rotation=[0, 0, 0], translation=[0, 0, 0]):
-        rot = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        rot = _np.eye(3)
 
         if rotation == [0, 0, 0] and translation == [0, 0, 0]:
             # no rotation and no translation
@@ -146,40 +146,41 @@ class Block:
                       "\n rot[2] = 1 is a 90 degree positive rotation around the z axis"
                 raise TypeError(msg)
 
-            for h in range(0, len(self.holeInfo)):
-                if rotation[0] > 0:
-                    # rotate in x
-                    theta = rotation[0] * _np.pi / 2
-                    rot = [
-                        [1.0, 0.0, 0.0],
-                        [0.0, _np.cos(theta), -_np.sin(theta)],
-                        [0.0, _np.sin(theta), _np.cos(theta)]
-                    ]
-                if rotation[1] > 0:
-                    # rotate in y
-                    theta = rotation[1] * _np.pi / 2
-                    rot = [
-                        [_np.cos(theta), 0.0, _np.sin(theta)],
-                        [0.0, 1.0, 0.0],
-                        [-_np.sin(theta), 0.0, _np.cos(theta)]
-                    ]
-                if rotation[2] > 0:
-                    # rotate in z
-                    theta = rotation[2] * _np.pi / 2
-                    rot = [
-                        [_np.cos(theta), -_np.sin(theta), 0.0],
-                        [_np.sin(theta), _np.cos(theta), 0.0],
-                        [0.0, 0.0, 1.0]
-                    ]
+            if rotation[0] > 0:
+                # rotate in x
+                theta = rotation[0] * _np.pi / 2
+                rotX = _np.array([
+                    [1.0, 0.0, 0.0],
+                    [0.0, _np.cos(theta), -_np.sin(theta)],
+                    [0.0, _np.sin(theta), _np.cos(theta)]
+                ])
+                rot = rotX @ rot
+            if rotation[1] > 0:
+                # rotate in y
+                theta = rotation[1] * _np.pi / 2
+                rotY = _np.array([
+                    [_np.cos(theta), 0.0, _np.sin(theta)],
+                    [0.0, 1.0, 0.0],
+                    [-_np.sin(theta), 0.0, _np.cos(theta)]
+                ])
+                rot = rotY @ rot
+            if rotation[2] > 0:
+                # rotate in z
+                theta = rotation[2] * _np.pi / 2
+                rotZ = _np.array([
+                    [_np.cos(theta), -_np.sin(theta), 0.0],
+                    [_np.sin(theta), _np.cos(theta), 0.0],
+                    [0.0, 0.0, 1.0]
+                ])
+                rot = rotZ @ rot
 
             # translation
             if len(translation) != 3 or not isinstance(translation, list):
                 msg = "translation must be a list of length 3 for [x,y,z] translation"
                 raise TypeError(msg)
-            trans = translation
 
         rotMat = _np.array(rot)
-        transMat = _np.array(trans)
+        transMat = _np.array(translation)
 
         # new block
         block_p = Block(blockType=self.blockType, cellNumber=self.cellNumber)  # copy block
@@ -188,7 +189,7 @@ class Block:
         holeInfo_new = []
 
         for s in block_p.surfaces:
-            s_new = s.transform(rotation=rot, translation=trans)
+            s_new = s.transform(rotation=rot, translation=translation)
             surfaces_new.append(s_new)
 
         for hi in _np.array(self.holeInfo):
