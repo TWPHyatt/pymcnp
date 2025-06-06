@@ -1,9 +1,8 @@
 import pyg4ometry
 import numpy as _np
 
-
-class Block:
-    def __init__(self, blockType, translation=[0, 0, 0], rotation=[0, 0, 0], cellNumber=None):
+class Block(pyg4ometry.mcnp.Cell):
+    def __init__(self, blockType, translation=[0, 0, 0], rotation=[0, 0, 0], cellNumber=None, reg=None):
         self.blockType = blockType
         self.dim = [0, 0, 0]  # dimensions [width in x, height in y, depth in z]
         if blockType == "full":
@@ -52,10 +51,10 @@ class Block:
             self.holeInfo.append(
                 [[+self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB7
 
-        self.surfaces = self._makeSurfaces()
-        self.geometry = self._makeGeometry()
+        surfaces = self._makeSurfaces()
+        geometry = self._makeGeometry(surfaces)
         self.transform(rotation=rotation, translation=translation)
-        self.cellNumber = cellNumber  # cell number
+        super().__init__(surfaces=surfaces, geometry=geometry, cellNumber=cellNumber, reg=reg)
 
     def getHole(self, holeNumber):
         if holeNumber < 0 or holeNumber > 21:
@@ -108,21 +107,21 @@ class Block:
 
         return surfaces
 
-    def _makeGeometry(self):
+    def _makeGeometry(self, surfaces):
         # polythene box
-        geomBoxX = pyg4ometry.mcnp.Intersection(self.surfaces[0], pyg4ometry.mcnp.Complement(self.surfaces[1]))
-        geomBoxY = pyg4ometry.mcnp.Intersection(self.surfaces[2], pyg4ometry.mcnp.Complement(self.surfaces[3]))
-        geomBoxZ = pyg4ometry.mcnp.Intersection(self.surfaces[4], pyg4ometry.mcnp.Complement(self.surfaces[5]))
+        geomBoxX = pyg4ometry.mcnp.Intersection(surfaces[0], pyg4ometry.mcnp.Complement(surfaces[1]))
+        geomBoxY = pyg4ometry.mcnp.Intersection(surfaces[2], pyg4ometry.mcnp.Complement(surfaces[3]))
+        geomBoxZ = pyg4ometry.mcnp.Intersection(surfaces[4], pyg4ometry.mcnp.Complement(surfaces[5]))
         geomBlock = pyg4ometry.mcnp.Intersection(geomBoxZ, pyg4ometry.mcnp.Intersection(geomBoxY, geomBoxX))
 
         for i in range(6, 20+1):
             # connector holes tube, left, right, front
-            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(self.surfaces[i]))
+            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[i]))
 
         if self.blockType == "full":
             for i in range(21, 27+1):
                 # connector holes back
-                geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(self.surfaces[i]))
+                geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[i]))
 
         return geomBlock
 
@@ -209,33 +208,137 @@ class Block:
     def addToRegistry(self, registry, replace=False):
         registry.addCell(self, replace=replace)
 
-    def makeNewConnectBlock(self, localHole, foreignHole, angle, makeConnector):
+    def makeNewConnectBlock(self, localHole, foreignHole, angle, blockType, cellNumber=None, makeConnector=False):
         """
         localHole: where on THIS block to connect this block to EG. blockThis.getHolePosition(hole=3)
         foreignHole: where on ANOTHER block to connect this block to EG. blockOther.getHolePosition(hole=3)
-        angle: rotate around the axis of connection
+        angle: rotate around the axis of connection, from zenith
         makeConnector : True
             returns [block, connector]
         makeConnector : False
             returns [block]
         """
+        if cellNumber is None:
+            cellNumber = self.cellNumber +1
 
-        # work out transform from localHole to foreignHole
+        # work out transform from foreignHole to localHole
+        h1Pos = _np.array(foreignHole[0])
+        h1Vect = _np.array(foreignHole[1])
+        h2Pos = _np.array(localHole[0])
+        h2Vect = _np.array(localHole[1])
+
+        a = h1Vect / _np.linalg.norm(h1Vect)
+        b = h2Vect / _np.linalg.norm(h2Vect)
+        axisIn = _np.cross(a, b)  # rotation axis
+        axisInNorm = _np.linalg.norm(axisIn)
+        dotProduct = _np.dot(a, b)
+        angleRad = _np.arccos(dotProduct)
+        angleDeg = _np.degrees(angleRad)
+        axisIn = axisIn / axisInNorm
+        print(f"{axisIn} {angleDeg}")
 
         # build block
+        foreignBlock = Block(blockType=blockType, cellNumber=cellNumber)
 
         # transform block
+        translation = h2Pos-h1Pos
+        print(f"translation {translation}")
 
         # build connector
+        if makeConnector is True:
+            print(f"making connector")
+            #connnector = Connector(localHole=, foreignHole=, translation=, rotation=, cellNumber=, reg=None)
 
         # transform connector
+        #connector.transform()
 
         #return [block_p, connector]
 
+    def addConnector(self, hole):
+        connector = Connector(localHole=hole)
+        return connector
 
-class Connector:
-    def __init__(self, hole, cellNumber=None):
-        self.hole = hole
 
-        connector = pyg4ometry.mcnp.RCC(*block_p.position, *self.hole[1], 0.3)
-        block_p.geometry = pyg4ometry.mcnp.Intersection(block_p.geometry, connector)
+class Connector(pyg4ometry.mcnp.Cell):
+    """
+    angle from zenith
+    """
+    def __init__(self, localHole, foreignHole=None, translation=[0, 0, 0], rotation=[0, 0, 0], cellNumber=None, reg=None):
+        self.localHole = localHole
+        self.foreignHole = foreignHole
+
+
+        surface = pyg4ometry.mcnp.RCC(self.localHole, self.foreignHole, 0.3)
+
+        self.transform(rotation=rotation, translation=translation)
+
+        super().__init__(surfaces=surface, geometry=surface, cellNumber=cellNumber, reg=reg)
+
+    def transform(self, rotation=[0, 0, 0], translation=[0, 0, 0]):
+        rot = _np.eye(3)
+
+        if rotation == [0, 0, 0] and translation == [0, 0, 0]:
+            # no rotation and no translation
+            return self
+        else:
+            # rotation
+            print(f"rotation")
+            # check for correct integer input
+            if len(rotation) != 3 or not isinstance(rotation, list):
+                msg = "rotation must be a list of length 3 for [x,y,z] rotations"
+                raise TypeError(msg)
+            if not all(isinstance(i, int) for i in rotation):
+                msg = "rotation elements can only be integers : [x,y,z]" \
+                      "\n rot[0] = 1 is a 90 degree positive rotation around the x axis " \
+                      "\n rot[1] = 1 is a 90 degree positive rotation around the y axis" \
+                      "\n rot[2] = 1 is a 90 degree positive rotation around the z axis"
+                raise TypeError(msg)
+
+            if rotation[0] > 0:
+                # rotate in x
+                theta = rotation[0] * _np.pi / 2
+                rotX = _np.array([
+                    [1.0, 0.0, 0.0],
+                    [0.0, _np.cos(theta), -_np.sin(theta)],
+                    [0.0, _np.sin(theta), _np.cos(theta)]
+                ])
+                rot = rotX @ rot
+            if rotation[1] > 0:
+                # rotate in y
+                theta = rotation[1] * _np.pi / 2
+                rotY = _np.array([
+                    [_np.cos(theta), 0.0, _np.sin(theta)],
+                    [0.0, 1.0, 0.0],
+                    [-_np.sin(theta), 0.0, _np.cos(theta)]
+                ])
+                rot = rotY @ rot
+            if rotation[2] > 0:
+                # rotate in z
+                theta = rotation[2] * _np.pi / 2
+                rotZ = _np.array([
+                    [_np.cos(theta), -_np.sin(theta), 0.0],
+                    [_np.sin(theta), _np.cos(theta), 0.0],
+                    [0.0, 0.0, 1.0]
+                ])
+                rot = rotZ @ rot
+
+            # translation
+            if len(translation) != 3 or not isinstance(translation, list):
+                msg = "translation must be a list of length 3 for [x,y,z] translation"
+                raise TypeError(msg)
+
+        rotMat = _np.array(rot)
+        transMat = _np.array(translation)
+
+        # new block
+        connector_p = Connector(blockType=self.blockType, cellNumber=self.cellNumber)  # copy block
+
+        surfaces_new = []
+        holeInfo_new = []
+
+        surfaces_new = connector_p.surfaces:.transform(rotation=rot, translation=translation)
+
+        connector_p.surfaces = surfaces_new
+        connector_p.geometry = connector_p._makeGeometry()
+
+        return connector_p
