@@ -52,9 +52,73 @@ class Block(pyg4ometry.mcnp.Cell):
                 [[+self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB7
 
         surfaces = self._makeSurfaces()
-        geometry = self._makeGeometry(surfaces)
-        self.transform(rotation=rotation, translation=translation)
-        super().__init__(surfaces=surfaces, geometry=geometry, cellNumber=cellNumber, reg=reg)
+
+        # apply transformation
+        rot = _np.eye(3)
+        if rotation != [0, 0, 0]:
+            # rotation
+            # check for correct integer input
+            if len(rotation) != 3 or not isinstance(rotation, list):
+                msg = "rotation must be a list of length 3 for [x,y,z] rotations"
+                raise TypeError(msg)
+            if not all(isinstance(i, int) for i in rotation):
+                msg = "rotation elements can only be integers : [x,y,z]" \
+                      "\n rot[0] = 1 is a 90 degree positive rotation around the x axis " \
+                      "\n rot[1] = 1 is a 90 degree positive rotation around the y axis" \
+                      "\n rot[2] = 1 is a 90 degree positive rotation around the z axis"
+                raise TypeError(msg)
+
+            if rotation[0] > 0:
+                # rotate in x
+                theta = rotation[0] * _np.pi / 2
+                rotX = _np.array([
+                    [1.0, 0.0, 0.0],
+                    [0.0, _np.cos(theta), -_np.sin(theta)],
+                    [0.0, _np.sin(theta), _np.cos(theta)]
+                ])
+                rot = rotX @ rot
+            if rotation[1] > 0:
+                # rotate in y
+                theta = rotation[1] * _np.pi / 2
+                rotY = _np.array([
+                    [_np.cos(theta), 0.0, _np.sin(theta)],
+                    [0.0, 1.0, 0.0],
+                    [-_np.sin(theta), 0.0, _np.cos(theta)]
+                ])
+                rot = rotY @ rot
+            if rotation[2] > 0:
+                # rotate in z
+                theta = rotation[2] * _np.pi / 2
+                rotZ = _np.array([
+                    [_np.cos(theta), -_np.sin(theta), 0.0],
+                    [_np.sin(theta), _np.cos(theta), 0.0],
+                    [0.0, 0.0, 1.0]
+                ])
+                rot = rotZ @ rot
+
+        # translation
+        if len(translation) != 3 or not isinstance(translation, list):
+            msg = "translation must be a list of length 3 for [x,y,z] translation"
+            raise TypeError(msg)
+
+        rotMat = _np.array(rot)
+        transMat = _np.array(translation)
+
+        surfaces_new = []
+        holeInfo_new = []
+
+        for s in surfaces:
+            s_new = s.transform(rotation=rot, translation=translation)
+            surfaces_new.append(s_new)
+        geometry = self._makeGeometry(surfaces_new)
+
+        for hi in _np.array(self.holeInfo):
+            pos_new = rotMat @ hi[0] + transMat
+            dir_new = rotMat @ hi[1]
+            holeInfo_new.append([pos_new, dir_new])
+        self.holeInfo = holeInfo_new
+
+        super().__init__(surfaces=surfaces_new, geometry=geometry, cellNumber=cellNumber, reg=reg)
 
     def getHole(self, holeNumber):
         if holeNumber < 0 or holeNumber > 21:
@@ -184,21 +248,21 @@ class Block(pyg4ometry.mcnp.Cell):
         # new block
         block_p = Block(blockType=self.blockType, cellNumber=self.cellNumber)  # copy block
 
-        surfaces_new = []
-        holeInfo_new = []
+        surfaces_p = []
+        holeInfo_p = []
 
-        for s in block_p.surfaces:
-            s_new = s.transform(rotation=rot, translation=translation)
-            surfaces_new.append(s_new)
+        for s in self.surfaceList:
+            s_p = s.transform(rotation=rot, translation=translation)
+            surfaces_p.append(s_p)
 
         for hi in _np.array(self.holeInfo):
-            pos_new = rotMat @ hi[0] + transMat
-            dir_new = rotMat @ hi[1]
-            holeInfo_new.append([pos_new, dir_new])
+            pos_p = rotMat @ hi[0] + transMat
+            dir_p = rotMat @ hi[1]
+            holeInfo_p.append([pos_p, dir_p])
 
-        block_p.surfaces = surfaces_new
-        block_p.geometry = block_p._makeGeometry()
-        block_p.holeInfo = holeInfo_new
+        block_p.surfaceList = surfaces_p
+        block_p.geometry = block_p._makeGeometry(block_p.surfaceList)
+        block_p.holeInfo = holeInfo_p
 
         return block_p
 
@@ -336,7 +400,7 @@ class Connector(pyg4ometry.mcnp.Cell):
         surfaces_new = []
         holeInfo_new = []
 
-        surfaces_new = connector_p.surfaces:.transform(rotation=rot, translation=translation)
+        surfaces_new = connector_p.surfaces.transform(rotation=rot, translation=translation)
 
         connector_p.surfaces = surfaces_new
         connector_p.geometry = connector_p._makeGeometry()
