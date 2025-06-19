@@ -6,7 +6,8 @@ class Block(pyg4ometry.mcnp.Cell):
         self.blockType = blockType
         self.dim = [11.0, 16.5, 5.5] if blockType == "full" else [11.0, 16.5, 2.5] if blockType == "half" else None
         if self.dim is None:
-            raise TypeError("Block type can only be 'full' or 'half'")
+            msg = f"Block type can only be 'full' or 'half'"
+            raise TypeError(msg)
 
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
@@ -103,7 +104,8 @@ class Block(pyg4ometry.mcnp.Cell):
         Converts a list of 90-degree step rotations [x, y, z] into a 3x3 rotation matrix
         """
         if len(rotation) != 3 or not all(isinstance(i, int) for i in rotation):
-            raise TypeError("rotation must be a list of 3 integers [x, y, z] representing 90° steps")
+            msg = f"rotation must be a list of 3 integers [x, y, z] representing 90° steps"
+            raise TypeError(msg)
 
         rotMat = _np.eye(3)
 
@@ -195,7 +197,7 @@ class Block(pyg4ometry.mcnp.Cell):
 
     def getHole(self, holeNumber):
         if not (0 <= holeNumber < len(self.holeInfo)):
-            msg = "Invalid hole number."
+            msg = f"Invalid hole number."
             raise TypeError(msg)
         return self.holeInfo[holeNumber]
 
@@ -270,11 +272,13 @@ class Block(pyg4ometry.mcnp.Cell):
 
     def makeNewConnectedBlock(self, localHole, newBlockHole, newBlockType, cellNumber=None, makeConnector=False, reg=None):
         if not (0 <= localHole < len(self.holeInfo)) or not (0 <= newBlockHole < len(self.holeInfo)):
-            raise TypeError(f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}.")
+            msg = f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}."
+            raise TypeError(msg)
 
         # check if hole is available
         if self.holeStatus[localHole]["connected"] or self.holeStatus[localHole]["covered"]:
-            raise ValueError(f"Hole {localHole} is not available for connection.")
+            msg = f"Hole {localHole} is not available for connection."
+            raise ValueError(msg)
 
         h1Pos = _np.array(self.getHole(localHole)[0])
         h1Vect = _np.array(self.getHole(localHole)[1])
@@ -303,7 +307,8 @@ class Block(pyg4ometry.mcnp.Cell):
         # make connector
         if makeConnector:
             if self.holeStatus[localHole]["hasConnector"]:
-                raise ValueError(f"Hole {localHole} already has a connector.")
+                msg = f"Hole {localHole} already has a connector."
+                raise ValueError(msg)
             connector = self.addConnector(localHole, cellNumber, reg)
             self.holeStatus[localHole]["hasConnector"] = True
             block_p.holeStatus[newBlockHole]["hasConnector"] = True
@@ -313,10 +318,12 @@ class Block(pyg4ometry.mcnp.Cell):
 
     def addConnector(self, localHole, cellNumber=None, reg=None):
         if not (0 <= localHole < len(self.holeInfo)):
-            raise TypeError(f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}.")
+            msg = f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}."
+            raise TypeError(msg)
 
         if self.holeStatus[localHole]["hasConnector"]:
-            raise ValueError(f"Hole {localHole} already has connector.")
+            msg = f"Hole {localHole} already has connector."
+            raise ValueError(msg)
 
         h1Pos = _np.array(self.getHole(localHole)[0])
         h1Vect = _np.array(self.getHole(localHole)[1])
@@ -339,14 +346,27 @@ class Block(pyg4ometry.mcnp.Cell):
         """
         un-transform block so hole is at origin and then apply rotation and translate back
         """
+
+        if self.holeStatus[hole]["connected"] is False:
+            msg = f"hole {hole} has no connection to be rotated around."
+            raise ValueError(msg)
+
         holePos = _np.array(self.getHole(hole)[0])
         holeVect = _np.array(self.getHole(hole)[1])
+        holeVect = holeVect / _np.linalg.norm(holeVect)
 
         rotMatIn = self._inputToRotationMatrix(rotation)
-        rotMat2 = _np.linalg.inv(_np.eye(3)) @ rotMatIn
-        transMat = holePos - rotMat2 @ holePos
 
-        block_p = self.transform(rotationMatrix=rotMat2.tolist(), translation=transMat.tolist())
+        # check that the rotation given is around hole axis
+        # the hole vector should be invarient for flipped if the rotation is allowed
+        holeVect_p = rotMatIn @ holeVect
+        if not (_np.allclose(holeVect_p, holeVect, atol=1e-6) or _np.allclose(holeVect_p, -holeVect, atol=1e-6)):
+            msg = f"Rotation must be around the hole's axis of connection."
+            raise ValueError(msg)
+
+        # apply rotation around the hole
+        transMat = holePos - rotMatIn @ holePos
+        block_p = self.transform(rotationMatrix=rotMatIn.tolist(), translation=transMat.tolist())
 
         return block_p
 
