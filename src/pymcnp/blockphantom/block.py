@@ -92,6 +92,12 @@ class Block(pyg4ometry.mcnp.Cell):
 
         super().__init__(surfaces=surfaces_p, geometry=geometry, cellNumber=cellNumber, reg=reg)
 
+        if reg:
+            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92)  # polyethylene
+            reg.addMaterial(m1)
+            self.addMaterial(m1)
+
+
     def _inputToRotationMatrix(self, rotation):
         """
         Converts a list of 90-degree step rotations [x, y, z] into a 3x3 rotation matrix
@@ -194,43 +200,42 @@ class Block(pyg4ometry.mcnp.Cell):
         return self.holeInfo[holeNumber]
 
     def _computeRotationMatrix(self, v1, v2):
-        v1 = v1 / _np.linalg.norm(v1)  # Normalize v1
-        v2 = v2 / _np.linalg.norm(v2)  # Normalize v2
+        v1 = v1 / _np.linalg.norm(v1)
+        v2 = v2 / _np.linalg.norm(v2)
 
-        cross_prod = _np.cross(v1, v2)  # Axis of rotation
-        dot_prod = _np.dot(v1, v2)  # Cosine of angle between vectors
+        crossProd = _np.cross(v1, v2)
+        dotProd = _np.dot(v1, v2)
 
-        if _np.allclose(cross_prod, 0):  # Vectors are parallel or anti-parallel
-            if dot_prod > 0:
-                return _np.eye(3)  # No rotation needed
+        if _np.allclose(crossProd, 0):  # vectors are parallel or opposite direction
+            if dotProd > 0:
+                return _np.eye(3)  # no rotation
             else:
-                return -_np.eye(3)  # 180° rotation (opposite direction)
+                return -_np.eye(3)  # opposite direction
 
-        cross_prod_norm = _np.linalg.norm(cross_prod)
-        cross_prod = cross_prod / cross_prod_norm  # Normalize axis
+        crossProdNorm = _np.linalg.norm(crossProd)
+        crossProd = crossProd / crossProdNorm  # normalise axis
 
-        angle = _np.arccos(dot_prod)  # Angle between vectors
+        angle = _np.arccos(dotProd)
 
-        # Skew-symmetric matrix for cross product
+        # rodrigues' formula where k is matrix of cross products
         K = _np.array([
-            [0, -cross_prod[2], cross_prod[1]],
-            [cross_prod[2], 0, -cross_prod[0]],
-            [-cross_prod[1], cross_prod[0], 0]
+            [0, -crossProd[2], crossProd[1]],
+            [crossProd[2], 0, -crossProd[0]],
+            [-crossProd[1], crossProd[0], 0]
         ])
 
         return _np.eye(3) + _np.sin(angle) * K + (1 - _np.cos(angle)) * _np.dot(K, K)
 
-    def transform(self, rotation_matrix, translation):
-        import numpy as np
-        rotMat = np.array(rotation_matrix)
-        transMat = np.array(translation)
+    def transform(self, rotationMatrix, translation):
+        rotMat = _np.array(rotationMatrix)
+        transMat = _np.array(translation)
 
         block_p = Block(blockType=self.blockType, cellNumber=self.cellNumber)
 
         surfaces_p = [s.transform(rotation=rotMat.tolist(), translation=transMat.tolist()) for s in self.surfaceList]
 
         holeInfo_p = []
-        for hi in np.array(self.holeInfo):
+        for hi in _np.array(self.holeInfo):
             pos_p = rotMat @ hi[0] + transMat
             dir_p = rotMat @ hi[1]
             holeInfo_p.append([pos_p, dir_p])
@@ -263,15 +268,13 @@ class Block(pyg4ometry.mcnp.Cell):
             return True
         return False
 
-    def makeNewConnectedBlock(self, localHole, newBlockHole, newBlockType, cellNumber=None, makeConnector=False):
+    def makeNewConnectedBlock(self, localHole, newBlockHole, newBlockType, cellNumber=None, makeConnector=False, reg=None):
         if not (0 <= localHole < len(self.holeInfo)) or not (0 <= newBlockHole < len(self.holeInfo)):
             raise TypeError(f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}.")
 
+        # check if hole is available
         if self.holeStatus[localHole]["connected"] or self.holeStatus[localHole]["covered"]:
             raise ValueError(f"Hole {localHole} is not available for connection.")
-
-        if cellNumber is None:
-            cellNumber = self.cellNumber + 1
 
         h1Pos = _np.array(self.getHole(localHole)[0])
         h1Vect = _np.array(self.getHole(localHole)[1])
@@ -286,86 +289,77 @@ class Block(pyg4ometry.mcnp.Cell):
         trans = h1Pos - h2Pos_p
 
         # transform the new block
-        block_p = block_p.transform(rotation_matrix=rotMat.tolist(), translation=trans.tolist())
+        block_p = block_p.transform(rotationMatrix=rotMat.tolist(), translation=trans.tolist())
 
         # update hole status as connected
         self.holeStatus[localHole]["connected"] = True
         block_p.holeStatus[newBlockHole]["connected"] = True
 
+        # update hole status as covered for overlapped holes
         for holeNum, hole in enumerate(self.holeInfo):
-            if self.holeStatus[holeNum]["connected"] is True:
-                continue  # if already connected skip this hole
-            elif self._isPointInsideBlock(block_p.dim, rotMat, trans, hole[0]):
+            if self._isPointInsideBlock(block_p.dim, rotMat, trans, hole[0]):
                 self.holeStatus[holeNum]["covered"] = True  # update hole status for holes under block as 'covered'
 
+        # make connector
         if makeConnector:
             if self.holeStatus[localHole]["hasConnector"]:
                 raise ValueError(f"Hole {localHole} already has a connector.")
+            connector = self.addConnector(localHole, cellNumber, reg)
             self.holeStatus[localHole]["hasConnector"] = True
             block_p.holeStatus[newBlockHole]["hasConnector"] = True
-
-            # connector creation
-            connector = Connector(
-                translation=trans.tolist(),
-                rotation=rotMat.tolist(),
-                cellNumber=cellNumber,
-                reg=None
-            )
             return [block_p, connector]
+
         return block_p
 
-    def addConnector(self, localHole, foreignBlock, foreignBlockHole, cellNumber=None, reg=None):
-        if not (0 <= localHole < len(self.holeInfo)) or not (0 <= foreignBlockHole < len(self.holeInfo)):
+    def addConnector(self, localHole, cellNumber=None, reg=None):
+        if not (0 <= localHole < len(self.holeInfo)):
             raise TypeError(f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}.")
 
-        if self.holeStatus[localHole]["connected"] or self.holeStatus[localHole]["covered"]:
-            raise ValueError(f"Hole {localHole} is not available for connection.")
-
-        if cellNumber is None:
-            cellNumber = self.cellNumber + 1
+        if self.holeStatus[localHole]["hasConnector"]:
+            raise ValueError(f"Hole {localHole} already has connector.")
 
         h1Pos = _np.array(self.getHole(localHole)[0])
         h1Vect = _np.array(self.getHole(localHole)[1])
 
-        h2Pos = _np.array(foreignBlock.getHole(foreignBlockHole)[0])
-        h2Vect = -_np.array(foreignBlock.getHole(foreignBlockHole)[1])  # negative for opposite direction of holes
-
-        if h1Vect != h2Vect:
-            msg = f"hole {localHole} and {foreignBlock} are not aligned for a connector"
-
         # connector creation
+        connectorLength = 1.5
+        rotMat = self._computeRotationMatrix(_np.array([0, 0, 1]), h1Vect)
+        direction = h1Vect / _np.linalg.norm(h1Vect)
+        translation = h1Pos - direction * (connectorLength / 2)
         connector = Connector(
-            translation=trans.tolist(),
+            translation=translation.tolist(),
             rotation=rotMat.tolist(),
+            length=connectorLength,
             cellNumber=cellNumber,
-            reg=None
+            reg=reg
         )
         return connector
 
-    def addIsolatedConnector(self):
+    def rotateAboutConnection(self, hole, rotation):
+        """
+        un-transform block so hole is at origin and then apply rotation and translate back
+        """
+        holePos = _np.array(self.getHole(hole)[0])
+        holeVect = _np.array(self.getHole(hole)[1])
 
-        # connector creation
-        connector = Connector(
-            translation=trans.tolist(),
-            rotation=rotMat.tolist(),
-            cellNumber=cellNumber,
-            reg=None
-        )
-        return connector
+        rotMatIn = self._inputToRotationMatrix(rotation)
+        rotMat2 = _np.linalg.inv(_np.eye(3)) @ rotMatIn
+        transMat = holePos - rotMat2 @ holePos
 
+        block_p = self.transform(rotationMatrix=rotMat2.tolist(), translation=transMat.tolist())
 
+        return block_p
 
 
 class Connector(pyg4ometry.mcnp.Cell):
-    def __init__(self, translation=[0, 0, 0], rotation=_np.eye(3), cellNumber=None,
-                 reg=None):
-        self.position =
-        self.direction =
+    def __init__(self, translation=[0, 0, 0], rotation=[[1, 0, 0], [0, 1, 0], [0, 0, 1]], length=1.5, cellNumber=None, reg=None):
 
-        surface = pyg4ometry.mcnp.RCC(self.localHole, self.newBlockHole, 0.3)
+        surface = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, length, 0.3)
 
-        rotMat = self._inputToRotationMatrix(rotation)
-        surface_p = surface.transform(rotation=rotMat.tolist(), translation=translation)
+        surface_p = surface.transform(rotation=rotation, translation=translation)
 
         super().__init__(surfaces=surface_p, geometry=surface_p, cellNumber=cellNumber, reg=reg)
 
+        if reg:
+            m2 = pyg4ometry.mcnp.Material(materialNumber=2, density=2.699)  # aluminium
+            reg.addMaterial(m2)
