@@ -104,8 +104,7 @@ class Block(pyg4ometry.mcnp.Cell):
         Converts a list of 90-degree step rotations [x, y, z] into a 3x3 rotation matrix
         """
         if len(rotation) != 3 or not all(isinstance(i, int) for i in rotation):
-            msg = f"rotation must be a list of 3 integers [x, y, z] representing 90° steps"
-            raise TypeError(msg)
+            raise TypeError("rotation must be a list of 3 integers [x, y, z] representing 90° steps")
 
         rotMat = _np.eye(3)
 
