@@ -19,24 +19,22 @@ class Block(pyg4ometry.mcnp.Cell):
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
         translationVector = _np.array(translation)
 
-        # define holes in local space
+        # define holes and surfaces in local space
         self.holeInfo = self._defineHoles()
-
-        # define surfaces in local space
         surfaces = self._makeSurfaces()
 
         # apply transformations to holes and surfaces to make them global space
         rotationMatrix = self._inputToRotationMatrix(rotationSteps)
 
-        surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector) for s in surfaces]
+        surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector.tolist()) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
         self.holeStatus = {i: {"connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
-        # mcnp cell
+        # a block is a cell
         super().__init__(surfaces=surfaces_p, geometry=geometry, cellNumber=cellNumber, reg=reg)
 
-        # if registry add block material to mcnp reg
+        # add block material to registry
         if reg:
             material = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92)  # polyethylene
             reg.addMaterial(material)
@@ -101,18 +99,13 @@ class Block(pyg4ometry.mcnp.Cell):
         geomBoxX = pyg4ometry.mcnp.Intersection(surfaces[0], pyg4ometry.mcnp.Complement(surfaces[1]))
         geomBoxY = pyg4ometry.mcnp.Intersection(surfaces[2], pyg4ometry.mcnp.Complement(surfaces[3]))
         geomBoxZ = pyg4ometry.mcnp.Intersection(surfaces[4], pyg4ometry.mcnp.Complement(surfaces[5]))
-        geomBlock = pyg4ometry.mcnp.Intersection(geomBoxZ, pyg4ometry.mcnp.Intersection(geomBoxY, geomBoxX))
+        geom = pyg4ometry.mcnp.Intersection(geomBoxZ, pyg4ometry.mcnp.Intersection(geomBoxY, geomBoxX))
+        # connector holes
+        for s in surfaces[6:]:
+            geom = pyg4ometry.mcnp.Intersection(geom, pyg4ometry.mcnp.Complement(s))
 
-        for i in range(6, 20 + 1):
-            # connector holes tube, left, right, front
-            geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[i]))
+        return geom
 
-        if self.blockType == "full":
-            for i in range(21, 27 + 1):
-                # connector holes back
-                geomBlock = pyg4ometry.mcnp.Intersection(geomBlock, pyg4ometry.mcnp.Complement(surfaces[i]))
-
-        return geomBlock
 
     def getHole(self, holeNumber):
         if not (0 <= holeNumber < len(self.holeInfo)):
