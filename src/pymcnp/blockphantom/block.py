@@ -14,6 +14,7 @@ class Block(pyg4ometry.mcnp.Cell):
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
 
+        # user defined transforms for block
         # TODO util - rotation steps input returning rotation matrix
         # translationVector = _np.array(translation)
 
@@ -31,30 +32,30 @@ class Block(pyg4ometry.mcnp.Cell):
         geometry = self._makeGeometry(surfaces_p)
 
         self.holeStatus = {
-            0: {"connected": False, "covered": False, "hasConnector": False},
-            1: {"connected": False, "covered": False, "hasConnector": False},
-            2: {"connected": False, "covered": False, "hasConnector": False},
-            3: {"connected": False, "covered": False, "hasConnector": False},
-            4: {"connected": False, "covered": False, "hasConnector": False},
-            5: {"connected": False, "covered": False, "hasConnector": False},
-            6: {"connected": False, "covered": False, "hasConnector": False},
-            7: {"connected": False, "covered": False, "hasConnector": False},
-            8: {"connected": False, "covered": False, "hasConnector": False},
-            9: {"connected": False, "covered": False, "hasConnector": False},
-            10: {"connected": False, "covered": False, "hasConnector": False},
-            11: {"connected": False, "covered": False, "hasConnector": False},
-            12: {"connected": False, "covered": False, "hasConnector": False},
-            13: {"connected": False, "covered": False, "hasConnector": False},
-            14: {"connected": False, "covered": False, "hasConnector": False},
-            15: {"connected": False, "covered": False, "hasConnector": False},
-            16: {"connected": False, "covered": False, "hasConnector": False},
-            17: {"connected": False, "covered": False, "hasConnector": False},
-            18: {"connected": False, "covered": False, "hasConnector": False},
-            19: {"connected": False, "covered": False, "hasConnector": False},
-            20: {"connected": False, "covered": False, "hasConnector": False},
-            21: {"connected": False, "covered": False, "hasConnector": False},
-            22: {"connected": False, "covered": False, "hasConnector": False},
-            23: {"connected": False, "covered": False, "hasConnector": False}
+            0: {"connected": False, "covered": False, "hasConnector": False},   # 0 : bottom left tube
+            1: {"connected": False, "covered": False, "hasConnector": False},   # 1 : bottom right tube
+            2: {"connected": False, "covered": False, "hasConnector": False},   # 2 : top left tube
+            3: {"connected": False, "covered": False, "hasConnector": False},   # 3 : top right tube
+            4: {"connected": False, "covered": False, "hasConnector": False},   # 4 : left top
+            5: {"connected": False, "covered": False, "hasConnector": False},   # 5 : left middle
+            6: {"connected": False, "covered": False, "hasConnector": False},   # 6 : left bottom
+            7: {"connected": False, "covered": False, "hasConnector": False},   # 7 : right top
+            8: {"connected": False, "covered": False, "hasConnector": False},   # 8 : right middle
+            9: {"connected": False, "covered": False, "hasConnector": False},   # 9 : right bottom
+            10: {"connected": False, "covered": False, "hasConnector": False},  # 10 : front top left
+            11: {"connected": False, "covered": False, "hasConnector": False},  # 11 : front top right
+            12: {"connected": False, "covered": False, "hasConnector": False},  # 12 : front middle left
+            13: {"connected": False, "covered": False, "hasConnector": False},  # 13 : front middle center
+            14: {"connected": False, "covered": False, "hasConnector": False},  # 14 : front middle right
+            15: {"connected": False, "covered": False, "hasConnector": False},  # 15 : front bottom left
+            16: {"connected": False, "covered": False, "hasConnector": False},  # 16 : front bottom right
+            17: {"connected": False, "covered": False, "hasConnector": False},  # 17 : back top left
+            18: {"connected": False, "covered": False, "hasConnector": False},  # 18 : back top right
+            19: {"connected": False, "covered": False, "hasConnector": False},  # 19 : back middle left
+            20: {"connected": False, "covered": False, "hasConnector": False},  # 20 : back middle center
+            21: {"connected": False, "covered": False, "hasConnector": False},  # 21 : back middle right
+            22: {"connected": False, "covered": False, "hasConnector": False},  # 22 : back bottom left
+            23: {"connected": False, "covered": False, "hasConnector": False}   # 23 : back bottom right
         }
 
         holeInfo_new = []
@@ -157,33 +158,9 @@ class Block(pyg4ometry.mcnp.Cell):
                     pyg4ometry.mcnp.PY((self.dim[1] / 2)),   # py2 (top)
                     pyg4ometry.mcnp.PZ((-self.dim[2] / 2)),  # pz1 (back)
                     pyg4ometry.mcnp.PZ((self.dim[2] / 2)),   # pz2 (front)
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[0][0], *self.holeInfo[0][1], 0.4),  # bottom-top left tube
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[1][0], *self.holeInfo[1][1], 0.4),  # bottom-top right tube
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[2][0], *self.holeInfo[2][1], 0.4),  # left-side top
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[3][0], *self.holeInfo[3][1], 0.4),  # left-side middle
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[4][0], *self.holeInfo[4][1], 0.4),  # left-side bottom
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[5][0], *self.holeInfo[5][1], 0.4),  # right-side top
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[6][0], *self.holeInfo[6][1], 0.4),  # right-side middle
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[7][0], *self.holeInfo[7][1], 0.4),  # right-side bottom
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[8][0], *self.holeInfo[8][1], 0.4),  # front-side top left
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[9][0], *self.holeInfo[9][1], 0.4),  # front-side top right
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[10][0], *self.holeInfo[10][1], 0.4),  # front-side middle left
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[11][0], *self.holeInfo[11][1], 0.4),  # front-side middle cent
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[12][0], *self.holeInfo[12][1], 0.4),  # front-side middle right
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[13][0], *self.holeInfo[13][1], 0.4),  # front-side bottom left
-                    pyg4ometry.mcnp.RCC(*self.holeInfo[14][0], *self.holeInfo[14][1], 0.4)]  # front-side bottom right
-
-
-        if self.blockType == "full":
-            # connector holes back-side
-            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[15][0], *self.holeInfo[15][1], 0.4))  # back top left
-            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[16][0], *self.holeInfo[16][1], 0.4))  # back top right
-            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[17][0], *self.holeInfo[17][1], 0.4))  # back middle left
-            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[18][0], *self.holeInfo[18][1], 0.4))  # back middle cent
-            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[19][0], *self.holeInfo[19][1], 0.4))  # back middle right
-            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[20][0], *self.holeInfo[20][1], 0.4))  # back bottom left
-            surfaces.append(pyg4ometry.mcnp.RCC(*self.holeInfo[21][0], *self.holeInfo[21][1], 0.4))  # back bottom right
-
+        ]
+        for holePosition, holeDirection in self.hole_info:
+            surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4))
         return surfaces
 
     def _makeGeometry(self, surfaces):
