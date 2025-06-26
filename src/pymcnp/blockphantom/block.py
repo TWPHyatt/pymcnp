@@ -43,6 +43,7 @@ class Block(pyg4ometry.mcnp.Cell):
         msg = f""
         for i, el in enumerate(self.holeStatus):
             msg = f"{i} {el[i]['name']} : connected {el[i]['connected']} covered {el[i]['covered']} hasConnector {el[i]['hasConnector']} \n"
+
         return msg
 
     def _defineHoles(self):
@@ -87,7 +88,8 @@ class Block(pyg4ometry.mcnp.Cell):
             position_p = rotationMatrix @ position + translationVector
             direction_p = rotationMatrix @ direction
             holeInfo_p.append([position_p, direction_p])
-        return
+
+        return holeInfo_p
 
     def _makeSurfaces(self):
         surfaces = [pyg4ometry.mcnp.PX((-self.dim[0] / 2)),  # px1 (left)
@@ -114,23 +116,27 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return geom
 
-    def transform(self, rotationMatrix, translation):
-        rotMat = _np.array(rotationMatrix)
-        transMat = _np.array(translation)
+    def transform(self, rotation, translation):
+        rotationMatrix = _utils.rotationStepsToMatrix(rotation)
+        translationVector = _np.array(translation)
 
-        block_p = Block(blockType=self.blockType, cellNumber=self.cellNumber)
+        # new block (prime)
+        block_p = Block(
+            blockType=self.block_type,
+            rotationSteps=[0, 0, 0],
+            translation=[0, 0, 0],
+            cellNumber=self.cellNumber,
+            reg=self.reg
+        )
 
-        surfaces_p = [s.transform(rotation=rotMat.tolist(), translation=transMat.tolist()) for s in self.surfaceList]
+        # transform surface
+        surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector.tolist()) for s in self.surfaceList]
 
-        holeInfo_p = []
-        for hi in _np.array(self.holeInfo):
-            pos_p = rotMat @ hi[0] + transMat
-            dir_p = rotMat @ hi[1]
-            holeInfo_p.append([pos_p, dir_p])
-
+        # update the new block
         block_p.surfaceList = surfaces_p
         block_p.geometry = block_p._makeGeometry(surfaces_p)
-        block_p.holeInfo = holeInfo_p
+        block_p.holeInfo = block_p._transformHoles(rotationMatrix, translationVector)
+        block_p.holeStatus = self.hole_status.copy()
 
         return block_p
 
