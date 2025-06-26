@@ -4,7 +4,7 @@ from .connector import *
 import numpy as _np
 
 class Block(pyg4ometry.mcnp.Cell):
-    def __init__(self, blockType, translation=[0, 0, 0], rotation=[0, 0, 0], cellNumber=None, reg=None):
+    def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
         self.blockType = blockType
         self.dim = [11.0, 16.5, 5.5] if blockType == "full" else [11.0, 16.5, 2.5] if blockType == "half" else None
         if self.dim is None:
@@ -13,6 +13,11 @@ class Block(pyg4ometry.mcnp.Cell):
 
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
+
+        # TODO util - rotation steps input returning rotation matrix
+        # translationVector = _np.array(translation)
+
+        # define holes in local space
         # HoleInfo is the [xyz co-ordinates, xyz axis-vector] for each hole FROM THE CENTER OF EACH BLOCK
         self.holeInfo = [[[-self.unit, -(self.dim[1] + self.small) / 2, 0], [0, (self.dim[1] + self.small) / 2, 0]],  # bottom tubeL
                          [[+self.unit, -(self.dim[1] + self.small) / 2, 0], [0, (self.dim[1] + self.small) / 2, 0]],  # bottom tubeR
@@ -51,6 +56,16 @@ class Block(pyg4ometry.mcnp.Cell):
             self.holeInfo.append(
                 [[+self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]])  # holeB7
 
+        # define surfaces in local space
+        surfaces = self._makeSurfaces()
+
+        # apply transformations to holes and surfaces to make them global space
+        rotMat = self._inputToRotationMatrix(rotationSteps)
+        transMat = _np.array(translation)
+
+        surfaces_p = [s.transform(rotation=rotMat.tolist(), translation=translation) for s in surfaces]
+        geometry = self._makeGeometry(surfaces_p)
+
         self.holeStatus = {
             0: {"connected": False, "covered": False, "hasConnector": False},
             1: {"connected": False, "covered": False, "hasConnector": False},
@@ -78,14 +93,6 @@ class Block(pyg4ometry.mcnp.Cell):
             23: {"connected": False, "covered": False, "hasConnector": False}
         }
 
-        surfaces = self._makeSurfaces()
-
-        rotMat = self._inputToRotationMatrix(rotation)
-        transMat = _np.array(translation)
-
-        surfaces_p = [s.transform(rotation=rotMat.tolist(), translation=translation) for s in surfaces]
-        geometry = self._makeGeometry(surfaces_p)
-
         holeInfo_new = []
         for hi in _np.array(self.holeInfo):
             pos_new = rotMat @ hi[0] + transMat
@@ -93,8 +100,10 @@ class Block(pyg4ometry.mcnp.Cell):
             holeInfo_new.append([pos_new, dir_new])
         self.holeInfo = holeInfo_new
 
+        # mcnp cell
         super().__init__(surfaces=surfaces_p, geometry=geometry, cellNumber=cellNumber, reg=reg)
 
+        # if registry add block material to mcnp reg
         if reg:
             m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92)  # polyethylene
             reg.addMaterial(m1)
