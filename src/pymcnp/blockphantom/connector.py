@@ -1,6 +1,6 @@
 import pyg4ometry
 import numpy as _np
-import utils as _utils
+from ..blockphantom import utils as _utils
 
 class Connector(pyg4ometry.mcnp.Cell):
     def __init__(self, translation=[0, 0, 0], rotationSteps=[0, 0, 0], length=1.5, cellNumber=None, reg=None):
