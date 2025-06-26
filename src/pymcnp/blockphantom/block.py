@@ -165,7 +165,7 @@ class Block(pyg4ometry.mcnp.Cell):
         h2Vect = -_np.array(block_p.getHole(newBlockHole)[1])  # negative for opposite direction of holes
 
         # transformation
-        rotMat = self._computeRotationMatrix(h2Vect, h1Vect)
+        rotMat = _utils.computeRotationMatrix(h2Vect, h1Vect)
         h2Pos_p = rotMat @ h2Pos  # rotated h2Pos
         trans = h1Pos - h2Pos_p
 
@@ -207,10 +207,10 @@ class Block(pyg4ometry.mcnp.Cell):
 
         # connector creation
         connectorLength = 1.5
-        rotMat = self._computeRotationMatrix(_np.array([0, 0, 1]), h1Vect)
+        rotMat = _utils.computeRotationMatrix(_np.array([0, 0, 1]), h1Vect)
         direction = h1Vect / _np.linalg.norm(h1Vect)
         translation = h1Pos - direction * (connectorLength / 2)
-        connector = Connector(
+        connector = _connector.Connector(
             translation=translation.tolist(),
             rotation=rotMat.tolist(),
             length=connectorLength,
