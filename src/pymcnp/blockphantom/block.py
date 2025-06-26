@@ -31,32 +31,7 @@ class Block(pyg4ometry.mcnp.Cell):
         surfaces_p = [s.transform(rotation=rotMat.tolist(), translation=translation) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
-        self.holeStatus = {
-            0: {"connected": False, "covered": False, "hasConnector": False},   # 0 : bottom left tube
-            1: {"connected": False, "covered": False, "hasConnector": False},   # 1 : bottom right tube
-            2: {"connected": False, "covered": False, "hasConnector": False},   # 2 : top left tube
-            3: {"connected": False, "covered": False, "hasConnector": False},   # 3 : top right tube
-            4: {"connected": False, "covered": False, "hasConnector": False},   # 4 : left top
-            5: {"connected": False, "covered": False, "hasConnector": False},   # 5 : left middle
-            6: {"connected": False, "covered": False, "hasConnector": False},   # 6 : left bottom
-            7: {"connected": False, "covered": False, "hasConnector": False},   # 7 : right top
-            8: {"connected": False, "covered": False, "hasConnector": False},   # 8 : right middle
-            9: {"connected": False, "covered": False, "hasConnector": False},   # 9 : right bottom
-            10: {"connected": False, "covered": False, "hasConnector": False},  # 10 : front top left
-            11: {"connected": False, "covered": False, "hasConnector": False},  # 11 : front top right
-            12: {"connected": False, "covered": False, "hasConnector": False},  # 12 : front middle left
-            13: {"connected": False, "covered": False, "hasConnector": False},  # 13 : front middle center
-            14: {"connected": False, "covered": False, "hasConnector": False},  # 14 : front middle right
-            15: {"connected": False, "covered": False, "hasConnector": False},  # 15 : front bottom left
-            16: {"connected": False, "covered": False, "hasConnector": False},  # 16 : front bottom right
-            17: {"connected": False, "covered": False, "hasConnector": False},  # 17 : back top left
-            18: {"connected": False, "covered": False, "hasConnector": False},  # 18 : back top right
-            19: {"connected": False, "covered": False, "hasConnector": False},  # 19 : back middle left
-            20: {"connected": False, "covered": False, "hasConnector": False},  # 20 : back middle center
-            21: {"connected": False, "covered": False, "hasConnector": False},  # 21 : back middle right
-            22: {"connected": False, "covered": False, "hasConnector": False},  # 22 : back bottom left
-            23: {"connected": False, "covered": False, "hasConnector": False}   # 23 : back bottom right
-        }
+        self.holeStatus = {i: {"connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
         holeInfo_new = []
         for hi in _np.array(self.holeInfo):
@@ -73,6 +48,13 @@ class Block(pyg4ometry.mcnp.Cell):
             m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92)  # polyethylene
             reg.addMaterial(m1)
             self.addMaterial(m1)
+
+    def printHoleInfo(self):
+        msg = f""
+        for i, el in enumerate(self.holeStatus):
+            msg = f"{i} {el[i]['name']} : connected {el[i]['connected']} covered {el[i]['covered']} hasConnector {el[i]['hasConnector']} \n"
+        return msg
+
 
     def _defineHoles(self):
         # define holes [xyz co-ordinates, xyz directions] relative to block center
