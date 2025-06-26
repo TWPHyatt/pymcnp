@@ -238,30 +238,30 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return connector
 
-    def rotateAboutConnection(self, hole, rotation):
+    def rotateAboutConnection(self, hole, rotationSteps):
         """
         un-transform block so hole is at origin and then apply rotation and translate back
         """
 
+        # check if hole has connection to rotate around
         if self.holeStatus[hole]["connected"] is False:
             msg = f"hole {hole} has no connection to be rotated around."
             raise ValueError(msg)
 
-        holePos = _np.array(self.getHole(hole)[0])
-        holeVect = _np.array(self.getHole(hole)[1])
-        holeVect = holeVect / _np.linalg.norm(holeVect)
+        holePosition, holeDirection = self.hole_info[hole]
+        holeDirection = holeDirection / _np.linalg.norm(holeDirection)
 
-        rotMatIn = self._inputToRotationMatrix(rotation)
+        rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
+        holeDirection_rotated = rotationMatrix @ holeDirection
 
         # check that the rotation given is around hole axis
         # the hole vector should be invarient for flipped if the rotation is allowed
-        holeVect_p = rotMatIn @ holeVect
-        if not (_np.allclose(holeVect_p, holeVect, atol=1e-6) or _np.allclose(holeVect_p, -holeVect, atol=1e-6)):
-            msg = f"Rotation must be around the hole's axis of connection."
+        if not (_np.allclose(holeDirection_rotated, holeDirection, atol=1e-6) or _np.allclose(holeDirection_rotated, -holeDirection, atol=1e-6)):
+            msg = f"Rotation must be around the hole's axis of connection"
             raise ValueError(msg)
 
         # apply rotation around the hole
-        transMat = holePos - rotMatIn @ holePos
-        block_p = self.transform(translation=transMat.tolist(), rotation=rotMatIn.tolist(), isRotationMatrix=True)
+        translationVector = holePosition - rotationMatrix @ holePosition
+        block_p = self.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist(), isRotationMatrix=True)
 
         return block_p
