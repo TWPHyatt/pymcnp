@@ -15,7 +15,7 @@ class Block(pyg4ometry.mcnp.Cell):
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
 
-        # user defined transforms for block
+        # user inputted block transforms
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
         translationVector = _np.array(translation)
 
@@ -24,8 +24,6 @@ class Block(pyg4ometry.mcnp.Cell):
         surfaces = self._makeSurfaces()
 
         # apply transformations to holes and surfaces to make them global space
-        rotationMatrix = self._inputToRotationMatrix(rotationSteps)
-
         surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector.tolist()) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
@@ -92,6 +90,7 @@ class Block(pyg4ometry.mcnp.Cell):
         ]
         for holePosition, holeDirection in self.holeInfo:
             surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4))
+
         return surfaces
 
     def _makeGeometry(self, surfaces):
