@@ -1,7 +1,7 @@
-import pyg4ometry
 import numpy as _np
 
-def _rotationStepsToMatrix(self, stepsIn):
+
+def rotationStepsToMatrix(stepsIn):
     """
     Converts a list of 90-degree step rotations [x, y, z] into a 3x3 rotation matrix
     """
@@ -41,4 +41,3 @@ def _rotationStepsToMatrix(self, stepsIn):
             rotationMatrix = axis(step) @ rotationMatrix
 
     return rotationMatrix
-
