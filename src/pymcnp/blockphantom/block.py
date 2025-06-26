@@ -1,7 +1,7 @@
 import pyg4ometry
 import numpy as _np
-import utils as _utils
-import connector as _connector
+from ..blockphantom import utils as _utils
+from ..blockphantom import connector as _connector
 
 
 class Block(pyg4ometry.mcnp.Cell):
@@ -255,7 +255,7 @@ class Block(pyg4ometry.mcnp.Cell):
         holeDirection_rotated = rotationMatrix @ holeDirection
 
         # check that the rotation given is around hole axis
-        # the hole vector should be invarient for flipped if the rotation is allowed
+        # the hole vector should be invariant for flipped if the rotation is allowed
         if not (_np.allclose(holeDirection_rotated, holeDirection, atol=1e-6) or _np.allclose(holeDirection_rotated, -holeDirection, atol=1e-6)):
             msg = f"Rotation must be around the hole's axis of connection"
             raise ValueError(msg)
