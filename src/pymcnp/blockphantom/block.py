@@ -24,6 +24,7 @@ class Block(pyg4ometry.mcnp.Cell):
         surfaces = self._makeSurfaces()
 
         # apply transformations to holes and surfaces to make them global space
+        self.holeInfo = self._transformHoles(rotationMatrix, translationVector)
         surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector.tolist()) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
@@ -79,6 +80,14 @@ class Block(pyg4ometry.mcnp.Cell):
             holes.extend(holesBack)
 
         return holes
+
+    def _transformHoles(self, rotationMatrix, translationVector):
+        holeInfo_p = []
+        for position, direction in self.holeInfo:
+            position_p = rotationMatrix @ position + translationVector
+            direction_p = rotationMatrix @ direction
+            holeInfo_p.append([position_p, direction_p])
+        return
 
     def _makeSurfaces(self):
         surfaces = [pyg4ometry.mcnp.PX((-self.dim[0] / 2)),  # px1 (left)
