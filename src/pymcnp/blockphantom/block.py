@@ -1,4 +1,6 @@
 import pyg4ometry
+from .utils import *
+from .connector import *
 import numpy as _np
 
 class Block(pyg4ometry.mcnp.Cell):
