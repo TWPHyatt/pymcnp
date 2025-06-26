@@ -25,18 +25,18 @@ class Block(pyg4ometry.mcnp.Cell):
         surfaces = self._makeSurfaces()
 
         # apply transformations to holes and surfaces to make them global space
-        rotMat = self._inputToRotationMatrix(rotationSteps)
-        transMat = _np.array(translation)
+        rotationMatrix = self._inputToRotationMatrix(rotationSteps)
+        translationVector = _np.array(translation)
 
-        surfaces_p = [s.transform(rotation=rotMat.tolist(), translation=translation) for s in surfaces]
+        surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
         self.holeStatus = {i: {"connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
         holeInfo_new = []
         for hi in _np.array(self.holeInfo):
-            pos_new = rotMat @ hi[0] + transMat
-            dir_new = rotMat @ hi[1]
+            pos_new = rotationMatrix @ hi[0] + rotationMatrix
+            dir_new = rotationMatrix @ hi[1]
             holeInfo_new.append([pos_new, dir_new])
         self.holeInfo = holeInfo_new
 
