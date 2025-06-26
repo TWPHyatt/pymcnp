@@ -105,13 +105,6 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return geom
 
-
-    def getHole(self, holeNumber):
-        if not (0 <= holeNumber < len(self.holeInfo)):
-            msg = f"Invalid hole number."
-            raise TypeError(msg)
-        return self.holeInfo[holeNumber]
-
     def _computeRotationMatrix(self, v1, v2):
         v1 = v1 / _np.linalg.norm(v1)
         v2 = v2 / _np.linalg.norm(v2)
