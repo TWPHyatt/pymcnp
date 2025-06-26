@@ -25,7 +25,7 @@ class Block(pyg4ometry.mcnp.Cell):
 
         # apply transformations to holes and surfaces to make them global space
         self.holeInfo = self._transformHoles(rotationMatrix, translationVector)
-        surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector.tolist()) for s in surfaces]
+        surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
         self.holeStatus = {i: {"connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
@@ -116,21 +116,22 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return geom
 
-    def transform(self, rotation, translation):
-        rotationMatrix = _utils.rotationStepsToMatrix(rotation)
+    def transform(self, translation, rotation, isRotationMatrix=False):
+        if isRotationMatrix:
+            rotationMatrix = _np.array(rotation)
+        else:
+            rotationMatrix = _utils.rotationStepsToMatrix(rotation)
         translationVector = _np.array(translation)
 
         # new block (prime)
         block_p = Block(
             blockType=self.block_type,
-            rotationSteps=[0, 0, 0],
-            translation=[0, 0, 0],
             cellNumber=self.cellNumber,
             reg=self.reg
         )
 
         # transform surface
-        surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector.tolist()) for s in self.surfaceList]
+        surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in self.surfaceList]
 
         # update the new block
         block_p.surfaceList = surfaces_p
@@ -140,9 +141,10 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return block_p
 
-    def _isPointInsideBlock(self, dimensions, rotation, translation, point):
+    def _isPointInsideBlock(self, dimensions, rotationMatrix, translationVector, pointXYZ):
         """
-        calculates the min and max corners of a block (coordinates post transformation) and checks if point is inside the box given by min_corner and max_corner
+        calculates the min and max corners of a block (coordinates post transformation)
+        and checks if point is inside the box given by minCorner and maxCorner
         """
         cornerCoords = _np.array([
             [0, 0, 0],              # origin corner (min x,y,z)
@@ -154,38 +156,37 @@ class Block(pyg4ometry.mcnp.Cell):
             [0, dimensions[1], dimensions[2]],  # corner in the +y +z
             [dimensions[0], dimensions[1], dimensions[2]]  # corner in the +x +y +z (max x,y,z)
         ])
-        cornerCoords_p = rotation @ cornerCoords.T  # apply rotation to each corner
-        cornerCoords_p = cornerCoords_p.T + translation  # apply translation to each corner (now global coordinates)
+        cornerCoords_p = rotationMatrix @ cornerCoords.T  # apply rotation to each corner
+        cornerCoords_p = cornerCoords_p.T + translationVector  # apply translation to each corner (now global coords)
         minCorner = _np.min(cornerCoords_p, axis=0)
         maxCorner = _np.max(cornerCoords_p, axis=0)
-        if _np.all(point >= minCorner) and _np.all(point <= maxCorner):
+        if _np.all(pointXYZ >= minCorner) and _np.all(pointXYZ <= maxCorner):
             return True
-        return False
+        else:
+            return False
 
-    def makeNewConnectedBlock(self, localHole, newBlockHole, newBlockType, cellNumber=None, makeConnector=False, reg=None):
+    def makeNewConnectedBlock(self, newBlockType, newBlockHole, localHole, cellNumber=None, makeConnector=False, reg=None):
+        # check input is correct
         if not (0 <= localHole < len(self.holeInfo)) or not (0 <= newBlockHole < len(self.holeInfo)):
-            msg = f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}."
+            msg = f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}"
             raise TypeError(msg)
 
         # check if hole is available
         if self.holeStatus[localHole]["connected"] or self.holeStatus[localHole]["covered"]:
-            msg = f"Hole {localHole} is not available for connection."
+            msg = f"Hole {localHole} is not available for connection"
             raise ValueError(msg)
 
-        h1Pos = _np.array(self.getHole(localHole)[0])
-        h1Vect = _np.array(self.getHole(localHole)[1])
-
+        h1Position, h1Direction = self.holeInfo[localHole]
         block_p = Block(blockType=newBlockType, cellNumber=cellNumber)
-        h2Pos = _np.array(block_p.getHole(newBlockHole)[0])
-        h2Vect = -_np.array(block_p.getHole(newBlockHole)[1])  # negative for opposite direction of holes
+        h2Position, h2Direction = block_p.holeInfo[localHole]
 
-        # transformation
-        rotMat = _utils.computeRotationMatrix(h2Vect, h1Vect)
-        h2Pos_p = rotMat @ h2Pos  # rotated h2Pos
-        trans = h1Pos - h2Pos_p
+        # calculate transformation (-h2 to h1)
+        rotationMatrix = _utils.computeRotationMatrix(-_np.array(h2Direction), _np.array(h1Direction)) # negative hole 2 direction
+        h2Position_rotated = rotationMatrix @ h2Position
+        translationVector = h1Position - h2Position_rotated
 
-        # transform the new block
-        block_p = block_p.transform(rotationMatrix=rotMat.tolist(), translation=trans.tolist())
+        # apply transformation to the new block
+        block_p = block_p.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist(), isRotationMatrix=True)
 
         # update hole status as connected
         self.holeStatus[localHole]["connected"] = True
@@ -193,13 +194,13 @@ class Block(pyg4ometry.mcnp.Cell):
 
         # update hole status as covered for overlapped holes
         for holeNum, hole in enumerate(self.holeInfo):
-            if self._isPointInsideBlock(block_p.dim, rotMat, trans, hole[0]):
+            if self._isPointInsideBlock(block_p.dim, rotationMatrix, translationVector, hole[0]):
                 self.holeStatus[holeNum]["covered"] = True  # update hole status for holes under block as 'covered'
 
         # make connector
         if makeConnector:
             if self.holeStatus[localHole]["hasConnector"]:
-                msg = f"Hole {localHole} already has a connector."
+                msg = f"Hole {localHole} already has a connector"
                 raise ValueError(msg)
             connector = self.addConnector(localHole, cellNumber, reg)
             self.holeStatus[localHole]["hasConnector"] = True
@@ -209,29 +210,32 @@ class Block(pyg4ometry.mcnp.Cell):
         return block_p
 
     def addConnector(self, localHole, cellNumber=None, reg=None):
+        # check input is correct
         if not (0 <= localHole < len(self.holeInfo)):
-            msg = f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}."
+            msg = f"Hole numbers must be between 0 and {len(self.holeInfo) - 1}"
             raise TypeError(msg)
 
+        # check if hole is available for connector
         if self.holeStatus[localHole]["hasConnector"]:
-            msg = f"Hole {localHole} already has connector."
+            msg = f"Hole {localHole} already has connector"
             raise ValueError(msg)
 
-        h1Pos = _np.array(self.getHole(localHole)[0])
-        h1Vect = _np.array(self.getHole(localHole)[1])
+        h1Position, h1Direction = self.holeInfo[localHole]
 
         # connector creation
-        connectorLength = 1.5
-        rotMat = _utils.computeRotationMatrix(_np.array([0, 0, 1]), h1Vect)
-        direction = h1Vect / _np.linalg.norm(h1Vect)
-        translation = h1Pos - direction * (connectorLength / 2)
+        length = 1.5
+        rotationMatrix = _utils.computeRotationMatrix(_np.array([0, 0, 1]), _np.array(h1Direction))
+        direction = h1Direction / _np.linalg.norm(h1Direction)
+        translationVector = h1Position - direction * (length / 2)
         connector = _connector.Connector(
-            translation=translation.tolist(),
-            rotation=rotMat.tolist(),
-            length=connectorLength,
+            translation=translationVector.tolist(),
+            length=length,
             cellNumber=cellNumber,
             reg=reg
         )
+        # override rotation with steps
+        connector.transform(translation=translationVector, rotation=rotationMatrix, isRotationMatrix=True)
+
         return connector
 
     def rotateAboutConnection(self, hole, rotation):
@@ -258,6 +262,6 @@ class Block(pyg4ometry.mcnp.Cell):
 
         # apply rotation around the hole
         transMat = holePos - rotMatIn @ holePos
-        block_p = self.transform(rotationMatrix=rotMatIn.tolist(), translation=transMat.tolist())
+        block_p = self.transform(translation=transMat.tolist(), rotation=rotMatIn.tolist(), isRotationMatrix=True)
 
         return block_p
