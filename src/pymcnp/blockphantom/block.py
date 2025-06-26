@@ -159,7 +159,7 @@ class Block(pyg4ometry.mcnp.Cell):
                     pyg4ometry.mcnp.PZ((-self.dim[2] / 2)),  # pz1 (back)
                     pyg4ometry.mcnp.PZ((self.dim[2] / 2)),   # pz2 (front)
         ]
-        for holePosition, holeDirection in self.hole_info:
+        for holePosition, holeDirection in self.holeInfo:
             surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4))
         return surfaces
 
