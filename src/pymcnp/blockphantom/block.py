@@ -1,7 +1,8 @@
 import pyg4ometry
-from .utils import *
-from .connector import *
 import numpy as _np
+import utils as _utils
+import connector as _connector
+
 
 class Block(pyg4ometry.mcnp.Cell):
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
@@ -15,8 +16,8 @@ class Block(pyg4ometry.mcnp.Cell):
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
 
         # user defined transforms for block
-        # TODO util - rotation steps input returning rotation matrix
-        # translationVector = _np.array(translation)
+        rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
+        translationVector = _np.array(translation)
 
         # define holes in local space
         self.holeInfo = self._defineHoles()
@@ -26,35 +27,26 @@ class Block(pyg4ometry.mcnp.Cell):
 
         # apply transformations to holes and surfaces to make them global space
         rotationMatrix = self._inputToRotationMatrix(rotationSteps)
-        translationVector = _np.array(translation)
 
         surfaces_p = [s.transform(rotation=rotationMatrix.tolist(), translation=translationVector) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
         self.holeStatus = {i: {"connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
-        holeInfo_new = []
-        for hi in _np.array(self.holeInfo):
-            pos_new = rotationMatrix @ hi[0] + rotationMatrix
-            dir_new = rotationMatrix @ hi[1]
-            holeInfo_new.append([pos_new, dir_new])
-        self.holeInfo = holeInfo_new
-
         # mcnp cell
         super().__init__(surfaces=surfaces_p, geometry=geometry, cellNumber=cellNumber, reg=reg)
 
         # if registry add block material to mcnp reg
         if reg:
-            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92)  # polyethylene
-            reg.addMaterial(m1)
-            self.addMaterial(m1)
+            material = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92)  # polyethylene
+            reg.addMaterial(material)
+            self.addMaterial(material)
 
     def printHoleInfo(self):
         msg = f""
         for i, el in enumerate(self.holeStatus):
             msg = f"{i} {el[i]['name']} : connected {el[i]['connected']} covered {el[i]['covered']} hasConnector {el[i]['hasConnector']} \n"
         return msg
-
 
     def _defineHoles(self):
         # define holes [xyz co-ordinates, xyz directions] relative to block center
