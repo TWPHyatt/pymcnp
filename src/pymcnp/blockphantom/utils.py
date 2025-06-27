@@ -6,10 +6,11 @@ def rotationStepsToMatrix(stepsIn):
     converts a list of 90-degree step rotations [x, y, z] into a 3x3 rotation matrix
     """
 
-    steps = _np.array(stepsIn)
+    if len(stepsIn) != 3 or not all(isinstance(i, int) for i in stepsIn):
+        msg = f"rotation_steps must be a list of 3 integers [x, y, z]"
+        raise TypeError(msg)
 
-    if len(steps) != 3 or not all(isinstance(i, int) for i in steps):
-        raise TypeError("rotation_steps must be a list of 3 integers [x, y, z]")
+    steps = _np.array(stepsIn)
 
     def rotX(n):
         theta = n * _np.pi / 2
