@@ -10,25 +10,30 @@ class Connector(pyg4ometry.mcnp.Cell):
 
         surface = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, length, 0.3)
 
-        surface_p = surface.transform(rotation=rotationMatrix, translation=translationVector)
+        surface_p = surface.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist())
 
-        super().__init__(surfaces=surface_p, geometry=surface_p, cellNumber=cellNumber, reg=reg)
+        super().__init__(surfaces=[surface_p], geometry=surface_p, cellNumber=cellNumber, reg=reg)
 
         if reg:
             m2 = pyg4ometry.mcnp.Material(materialNumber=2, density=2.699)  # aluminium
             reg.addMaterial(m2)
 
-    def transform(self, translation, rotation, isRotationMatrix=False):
+    def transform(self, translation=[0, 0, 0], rotation=[0, 0, 0], isRotationMatrix=False):
         if isRotationMatrix:
             rotationMatrix = _np.array(rotation)
         else:
             rotationMatrix = _utils.rotationStepsToMatrix(rotation)
         translationVector = _np.array(translation)
 
+        if hasattr(self, 'reg'):
+            reg = self.reg
+        else:
+            reg = None
+
         # new connector (prime)
         connector_p = Connector(
             cellNumber=self.cellNumber,
-            reg=self.reg
+            reg=reg
         )
 
         # transform surface
@@ -36,6 +41,6 @@ class Connector(pyg4ometry.mcnp.Cell):
 
         # update the new connector
         connector_p.surfaceList = surfaces_p
-        connector_p.geometry = surfaces_p
+        connector_p.geometry = surfaces_p[0]
 
         return connector_p
