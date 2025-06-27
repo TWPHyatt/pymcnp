@@ -28,7 +28,12 @@ class Block(pyg4ometry.mcnp.Cell):
         surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in surfaces]
         geometry = self._makeGeometry(surfaces_p)
 
-        self.holeStatus = {i: {"connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
+        holeNames = ["Bottom-Left", "Bottom-Right", "Top-Left", "Top-Right", "Left-Top", "Left-Middle",
+                     "Left-Bottom", "Right-Top", "Right-Middle", "Right-Bottom", "Front-TopLeft", "Front-TopRight",
+                     "Front-MiddleLeft", "Front-MiddleCenter", "Front-MiddleRight", "Front-BottomLeft",
+                     "Front-BottomRight", "Back-TopLeft", "Back-TopRight", "Back-MiddleLeft", "Back-MiddleCenter",
+                     "Back-MiddleRight", "Back-BottomLeft", "Back-BottomRight"]
+        self.holeStatus = {i: {"name": holeNames[i], "connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
         # a block is a cell
         super().__init__(surfaces=surfaces_p, geometry=geometry, cellNumber=cellNumber, reg=reg)
@@ -41,18 +46,17 @@ class Block(pyg4ometry.mcnp.Cell):
 
     def printHoleInfo(self):
         msg = f""
-        for i, el in enumerate(self.holeStatus):
-            msg = f"{i} {el[i]['name']} : connected {el[i]['connected']} covered {el[i]['covered']} hasConnector {el[i]['hasConnector']} \n"
-
-        return msg
+        for i in range(0, len(self.holeStatus)):
+            print(f"{i} {self.holeStatus[i]['name']} : connected {self.holeStatus[i]['connected']} covered {self.holeStatus[i]['covered']} hasConnector {self.holeStatus[i]['hasConnector']}")
+        return
 
     def _defineHoles(self):
         # define holes [xyz co-ordinates, xyz directions] relative to block center
         holes = [
-            [[-self.unit, -(self.dim[1] + self.small) / 2, 0], [0, (self.dim[1] + self.small) / 2, 0]],  # bottom tubeL
-            [[+self.unit, -(self.dim[1] + self.small) / 2, 0], [0, (self.dim[1] + self.small) / 2, 0]],  # bottom tubeR
-            [[-self.unit, (self.dim[1] + self.small) / 2, 0], [0, -(self.dim[1] + self.small) / 2, 0]],  # top tubeL
-            [[+self.unit, (self.dim[1] + self.small) / 2, 0], [0, -(self.dim[1] + self.small) / 2, 0]],  # top tubeR
+            [[-self.unit, -(self.dim[1] + self.small) / 2, 0], [0, self.dim[1]/2 + self.small, 0]],  # bottom tubeL
+            [[+self.unit, -(self.dim[1] + self.small) / 2, 0], [0, self.dim[1]/2 + self.small, 0]],  # bottom tubeR
+            [[-self.unit, (self.dim[1] + self.small) / 2, 0], [0, -self.dim[1]/2 - self.small, 0]],  # top tubeL
+            [[+self.unit, (self.dim[1] + self.small) / 2, 0], [0, -self.dim[1]/2 - self.small, 0]],  # top tubeR
             [[-self.dim[0] / 2, +self.unit * 2, 0], [1 + (self.small / 2), 0, 0]],  # holeL1
             [[-self.dim[0] / 2, 0, 0], [1 + (self.small / 2), 0, 0]],               # holeL2
             [[-self.dim[0] / 2, -self.unit * 2, 0], [1 + (self.small / 2), 0, 0]],  # holeL3
@@ -116,18 +120,23 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return geom
 
-    def transform(self, translation, rotation, isRotationMatrix=False):
+    def transform(self, translation=[0, 0, 0], rotation=[0, 0, 0], isRotationMatrix=False):
         if isRotationMatrix:
             rotationMatrix = _np.array(rotation)
         else:
             rotationMatrix = _utils.rotationStepsToMatrix(rotation)
         translationVector = _np.array(translation)
 
+        if hasattr(self, 'reg'):
+            reg = self.reg
+        else:
+            reg = None
+
         # new block (prime)
         block_p = Block(
-            blockType=self.block_type,
+            blockType=self.blockType,
             cellNumber=self.cellNumber,
-            reg=self.reg
+            reg=reg
         )
 
         # transform surface
@@ -137,7 +146,7 @@ class Block(pyg4ometry.mcnp.Cell):
         block_p.surfaceList = surfaces_p
         block_p.geometry = block_p._makeGeometry(surfaces_p)
         block_p.holeInfo = block_p._transformHoles(rotationMatrix, translationVector)
-        block_p.holeStatus = self.hole_status.copy()
+        block_p.holeStatus = self.holeStatus.copy()
 
         return block_p
 
@@ -178,7 +187,7 @@ class Block(pyg4ometry.mcnp.Cell):
 
         h1Position, h1Direction = self.holeInfo[localHole]
         block_p = Block(blockType=newBlockType, cellNumber=cellNumber)
-        h2Position, h2Direction = block_p.holeInfo[localHole]
+        h2Position, h2Direction = block_p.holeInfo[newBlockHole]
 
         # calculate transformation (-h2 to h1)
         rotationMatrix = _utils.computeRotationMatrix(-_np.array(h2Direction), _np.array(h1Direction)) # negative hole 2 direction
@@ -226,17 +235,18 @@ class Block(pyg4ometry.mcnp.Cell):
         length = 1.5
         rotationMatrix = _utils.computeRotationMatrix(_np.array([0, 0, 1]), _np.array(h1Direction))
         direction = h1Direction / _np.linalg.norm(h1Direction)
-        translationVector = h1Position - direction * (length / 2)
+        translationVector = h1Position - (direction * (length / 2))
+
+        # connector at the origin
         connector = _connector.Connector(
-            translation=translationVector.tolist(),
             length=length,
             cellNumber=cellNumber,
             reg=reg
         )
-        # override rotation with steps
-        connector.transform(translation=translationVector, rotation=rotationMatrix, isRotationMatrix=True)
+        # apply transformation to move and align to hole, with 50% length outside hole
+        connector_p = connector.transform(translation=translationVector, rotation=rotationMatrix, isRotationMatrix=True)
 
-        return connector
+        return connector_p
 
     def rotateAboutConnection(self, hole, rotationSteps):
         """
@@ -248,7 +258,7 @@ class Block(pyg4ometry.mcnp.Cell):
             msg = f"hole {hole} has no connection to be rotated around."
             raise ValueError(msg)
 
-        holePosition, holeDirection = self.hole_info[hole]
+        holePosition, holeDirection = self.holeInfo[hole]
         holeDirection = holeDirection / _np.linalg.norm(holeDirection)
 
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
