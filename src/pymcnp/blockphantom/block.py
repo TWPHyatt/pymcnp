@@ -88,11 +88,10 @@ class Block(pyg4ometry.mcnp.Cell):
 
     def _transformHoles(self, rotationMatrix, translationVector):
         holeInfo_p = []
-        for position, direction in self.holeInfo:
-            position_p = rotationMatrix @ position + translationVector
-            direction_p = rotationMatrix @ direction
+        for hi in _np.array(self.holeInfo):
+            position_p = rotationMatrix @ hi[0] + translationVector
+            direction_p = rotationMatrix @ hi[1]
             holeInfo_p.append([position_p, direction_p])
-
         return holeInfo_p
 
     def _makeSurfaces(self):
@@ -145,7 +144,7 @@ class Block(pyg4ometry.mcnp.Cell):
         # update the new block
         block_p.surfaceList = surfaces_p
         block_p.geometry = block_p._makeGeometry(surfaces_p)
-        block_p.holeInfo = block_p._transformHoles(rotationMatrix, translationVector)
+        block_p.holeInfo = self._transformHoles(rotationMatrix, translationVector)
         block_p.holeStatus = self.holeStatus.copy()
 
         return block_p
@@ -186,16 +185,25 @@ class Block(pyg4ometry.mcnp.Cell):
             raise ValueError(msg)
 
         h1Position, h1Direction = self.holeInfo[localHole]
+        print(f"({localHole}) h1: {h1Position} , {h1Direction}")
         block_p = Block(blockType=newBlockType, cellNumber=cellNumber)
         h2Position, h2Direction = block_p.holeInfo[newBlockHole]
+        print(f"({newBlockHole}) h2: {h2Position} , {h2Direction}")
 
         # calculate transformation (-h2 to h1)
         rotationMatrix = _utils.computeRotationMatrix(-_np.array(h2Direction), _np.array(h1Direction)) # negative hole 2 direction
         h2Position_rotated = rotationMatrix @ h2Position
         translationVector = h1Position - h2Position_rotated
+        print(f"tr: {translationVector}")
 
         # apply transformation to the new block
         block_p = block_p.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist(), isRotationMatrix=True)
+
+        print(f"connecting...")
+        h113Position, h113Direction = self.holeInfo[13]
+        print(f"({13}) h1: {h113Position} , {h113Direction}")
+        h213Position, h213Direction = block_p.holeInfo[13]
+        print(f"({13}) h2: {h213Position} , {h213Direction}")
 
         # update hole status as connected
         self.holeStatus[localHole]["connected"] = True
@@ -253,25 +261,27 @@ class Block(pyg4ometry.mcnp.Cell):
         un-transform block so hole is at origin and then apply rotation and translate back
         """
 
+        holePosition, holeDirection = self.holeInfo[hole]
+
         # check if hole has connection to rotate around
         if self.holeStatus[hole]["connected"] is False:
             msg = f"hole {hole} has no connection to be rotated around."
             raise ValueError(msg)
 
-        holePosition, holeDirection = self.holeInfo[hole]
-        holeDirection = holeDirection / _np.linalg.norm(holeDirection)
-
-        rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
-        holeDirection_rotated = rotationMatrix @ holeDirection
-
         # check that the rotation given is around hole axis
         # the hole vector should be invariant for flipped if the rotation is allowed
+        holeDirection = holeDirection / _np.linalg.norm(holeDirection)
+        rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
+        holeDirection_rotated = rotationMatrix @ holeDirection
         if not (_np.allclose(holeDirection_rotated, holeDirection, atol=1e-6) or _np.allclose(holeDirection_rotated, -holeDirection, atol=1e-6)):
             msg = f"Rotation must be around the hole's axis of connection"
             raise ValueError(msg)
 
-        # apply rotation around the hole
-        translationVector = holePosition - rotationMatrix @ holePosition
-        block_p = self.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist(), isRotationMatrix=True)
+        # move block from connection so hole is at origin
+        block_p = self.transform(translation=-holePosition, rotation=[0, 0, 0])
+        # rotate by rotationSteps
+        block_p = block_p.transform(translation=[0, 0, 0], rotation=rotationSteps)
+        # move block back to connection
+        block_p = block_p.transform(translation=holePosition, rotation=[0, 0, 0])
 
         return block_p
