@@ -7,7 +7,7 @@ def rotationStepsToMatrix(stepsIn):
     """
 
     if len(stepsIn) != 3 or not all(isinstance(i, int) for i in stepsIn):
-        msg = f"rotation_steps must be a list of 3 integers [x, y, z]"
+        msg = f"rotation steps must be a list of 3 integers [x, y, z]"
         raise TypeError(msg)
 
     steps = _np.array(stepsIn)
