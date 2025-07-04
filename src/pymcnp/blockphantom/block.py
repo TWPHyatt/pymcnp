@@ -6,6 +6,7 @@ from ..blockphantom import connector as _connector
 
 class Block(pyg4ometry.mcnp.Cell):
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
+        super().__init__(surfaces=[], reg=reg)  # a block is a cell
         self.blockType = blockType
         self.dim = [11.0, 16.5, 5.5] if blockType == "full" else [11.0, 16.5, 2.5] if blockType == "half" else None
         if self.dim is None:
@@ -23,26 +24,37 @@ class Block(pyg4ometry.mcnp.Cell):
         self.holeInfo = self._defineHoles()
         surfaces = self._makeSurfaces()
 
-        # apply transformations to holes and surfaces to make them global space
+        # apply transformations to holes to make them global space
         self.holeInfo = self._transformHoles(rotationMatrix, translationVector)
-        surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in surfaces]
-        geometry = self._makeGeometry(surfaces_p)
 
         holeNames = ["Bottom-Left", "Bottom-Right", "Top-Left", "Top-Right", "Left-Top", "Left-Middle",
                      "Left-Bottom", "Right-Top", "Right-Middle", "Right-Bottom", "Front-TopLeft", "Front-TopRight",
                      "Front-MiddleLeft", "Front-MiddleCenter", "Front-MiddleRight", "Front-BottomLeft",
                      "Front-BottomRight", "Back-TopLeft", "Back-TopRight", "Back-MiddleLeft", "Back-MiddleCenter",
                      "Back-MiddleRight", "Back-BottomLeft", "Back-BottomRight"]
+
         self.holeStatus = {i: {"name": holeNames[i], "connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
-        # a block is a cell
-        super().__init__(surfaces=surfaces_p, geometry=geometry, cellNumber=cellNumber, reg=reg)
+        # apply transformations to surfaces to make them global space
+        surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in surfaces]  # transformed surfaces
 
-        # add block material to registry
         if reg:
-            material = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92)  # polyethylene
-            reg.addMaterial(material)
-            self.addMaterial(material)
+            # add s to registry and generate unique surfaceNumbers
+            for s_p in surfaces_p:
+                if s_p.surfaceNumber in reg.surfaceDict:
+                    s_p.surfaceNumber = reg.getNewSurfaceNumber()
+                if not s_p.surfaceNumber:
+                    s_p.surfaceNumber = reg.getNewSurfaceNumber()
+                reg.surfaceDict[s_p.surfaceNumber] = s_p
+                self.addSurface(s_p)  # also add to the cell's surfaceList
+        else:
+            self.surfaceList = surfaces_p  # cell's surfaceList
+
+        if reg:
+            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92, reg=reg)  # polyethylene
+            self.addMaterial(m1)
+
+        self.addGeometry(self._makeGeometry(self.surfaceList))
 
     def printHoleInfo(self):
         msg = f""
@@ -92,22 +104,25 @@ class Block(pyg4ometry.mcnp.Cell):
             position_p = rotationMatrix @ hi[0] + translationVector
             direction_p = rotationMatrix @ hi[1]
             holeInfo_p.append([position_p, direction_p])
+
         return holeInfo_p
 
-    def _makeSurfaces(self):
-        surfaces = [pyg4ometry.mcnp.PX((-self.dim[0] / 2)),  # px1 (left)
-                    pyg4ometry.mcnp.PX((self.dim[0] / 2)),   # px2 (right)
-                    pyg4ometry.mcnp.PY((-self.dim[1] / 2)),  # py1 (bottom)
-                    pyg4ometry.mcnp.PY((self.dim[1] / 2)),   # py2 (top)
-                    pyg4ometry.mcnp.PZ((-self.dim[2] / 2)),  # pz1 (back)
-                    pyg4ometry.mcnp.PZ((self.dim[2] / 2)),   # pz2 (front)
-        ]
+    def _makeSurfaces(self, reg=None):
+        surfaces = [pyg4ometry.mcnp.PX((-self.dim[0] / 2), surfaceNumber=1, reg=reg),  # px1 (left)
+                    pyg4ometry.mcnp.PX((self.dim[0] / 2), surfaceNumber=2, reg=reg),   # px2 (right)
+                    pyg4ometry.mcnp.PY((-self.dim[1] / 2), surfaceNumber=3, reg=reg),  # py1 (bottom)
+                    pyg4ometry.mcnp.PY((self.dim[1] / 2), surfaceNumber=4, reg=reg),   # py2 (top)
+                    pyg4ometry.mcnp.PZ((-self.dim[2] / 2), surfaceNumber=5, reg=reg),  # pz1 (back)
+                    pyg4ometry.mcnp.PZ((self.dim[2] / 2), surfaceNumber=6, reg=reg),   # pz2 (front)
+                    ]
+        i = len(surfaces)
         for holePosition, holeDirection in self.holeInfo:
-            surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4))
+            i = i + 1
+            surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4, surfaceNumber=i, reg=reg))
 
         return surfaces
 
-    def _makeGeometry(self, surfaces):
+    def _makeGeometry(self, surfaces, reg=None):
         # polythene box
         geomBoxX = pyg4ometry.mcnp.Intersection(surfaces[0], pyg4ometry.mcnp.Complement(surfaces[1]))
         geomBoxY = pyg4ometry.mcnp.Intersection(surfaces[2], pyg4ometry.mcnp.Complement(surfaces[3]))
@@ -115,6 +130,7 @@ class Block(pyg4ometry.mcnp.Cell):
         geom = pyg4ometry.mcnp.Intersection(geomBoxZ, pyg4ometry.mcnp.Intersection(geomBoxY, geomBoxX))
         # connector holes
         for s in surfaces[6:]:
+            #geom = pyg4ometry.mcnp.Intersection(geom, s)
             geom = pyg4ometry.mcnp.Intersection(geom, pyg4ometry.mcnp.Complement(s))
 
         return geom
@@ -134,8 +150,7 @@ class Block(pyg4ometry.mcnp.Cell):
         # new block (prime)
         block_p = Block(
             blockType=self.blockType,
-            cellNumber=self.cellNumber,
-            reg=reg
+            cellNumber=self.cellNumber
         )
 
         # transform surface
@@ -184,9 +199,11 @@ class Block(pyg4ometry.mcnp.Cell):
             msg = f"Hole {localHole} is not available for connection"
             raise ValueError(msg)
 
+
+
         h1Position, h1Direction = self.holeInfo[localHole]
         print(f"({localHole}) h1: {h1Position} , {h1Direction}")
-        block_p = Block(blockType=newBlockType, cellNumber=cellNumber)
+        block_p = Block(blockType=newBlockType, cellNumber=cellNumber, reg=reg)
         h2Position, h2Direction = block_p.holeInfo[newBlockHole]
         print(f"({newBlockHole}) h2: {h2Position} , {h2Direction}")
 
@@ -219,6 +236,8 @@ class Block(pyg4ometry.mcnp.Cell):
             if self.holeStatus[localHole]["hasConnector"]:
                 msg = f"Hole {localHole} already has a connector"
                 raise ValueError(msg)
+            if cellNumber is not None:
+                cellNumber = cellNumber+1
             connector = self.addConnector(localHole, cellNumber, reg)
             self.holeStatus[localHole]["hasConnector"] = True
             block_p.holeStatus[newBlockHole]["hasConnector"] = True
