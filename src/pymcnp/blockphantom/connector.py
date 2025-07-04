@@ -4,6 +4,7 @@ from ..blockphantom import utils as _utils
 
 class Connector(pyg4ometry.mcnp.Cell):
     def __init__(self, translation=[0, 0, 0], rotationSteps=[0, 0, 0], length=1.5, cellNumber=None, reg=None):
+        super().__init__(surfaces=[], reg=reg)  # a connector is a cell
 
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
         translationVector = _np.array(translation)
@@ -12,11 +13,27 @@ class Connector(pyg4ometry.mcnp.Cell):
 
         surface_p = surface.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist())
 
-        super().__init__(surfaces=[surface_p], geometry=surface_p, cellNumber=cellNumber, reg=reg)
+        if reg:
+            # add s to registry and generate unique surfaceNumbers
+            if surface_p.surfaceNumber in reg.surfaceDict:
+                surface_p.surfaceNumber = reg.getNewSurfaceNumber()
+            if not surface_p.surfaceNumber:
+                surface_p.surfaceNumber = reg.getNewSurfaceNumber()
+            reg.surfaceDict[surface_p.surfaceNumber] = surface_p
+            self.addSurface(surface_p)  # also add to the cell's surfaceList
+        else:
+            self.surfaceList = surface_p  # cell's surfaceList
+
+        if reg:
+            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92, reg=reg)  # polyethylene
+            self.addMaterial(m1)
+
+        super().__init__(surfaces=[surface_p], geometry=surface_p, cellNumber=cellNumber, materialNumber=2, reg=reg)
 
         if reg:
             m2 = pyg4ometry.mcnp.Material(materialNumber=2, density=2.699)  # aluminium
             reg.addMaterial(m2)
+            self.addMaterial(m2)
 
     def transform(self, translation=[0, 0, 0], rotation=[0, 0, 0], isRotationMatrix=False):
         if isRotationMatrix:
@@ -33,7 +50,6 @@ class Connector(pyg4ometry.mcnp.Cell):
         # new connector (prime)
         connector_p = Connector(
             cellNumber=self.cellNumber,
-            reg=reg
         )
 
         # transform surface
