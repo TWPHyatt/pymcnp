@@ -303,4 +303,6 @@ class Block(pyg4ometry.mcnp.Cell):
         # move block back to connection
         block_p = block_p.transform(translation=holePosition, rotation=[0, 0, 0])
 
+        # todo update hole status  - some holes will become uncovered and some covered
+
         return block_p
