@@ -11,7 +11,6 @@ class Block(pyg4ometry.mcnp.Cell):
     halfBlockCache = None
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
         self._mesh = None
-
         super().__init__(surfaces=[], reg=reg)  # a block is a cell
         self.blockType = blockType
         self.dim = fullBlockDim if blockType == "full" else halfBlockDim if blockType == "half" else None
@@ -186,6 +185,7 @@ class Block(pyg4ometry.mcnp.Cell):
         block_p.holeInfo = self._transformHoles(rotationMatrix, translationVector)
         block_p.holeStatus = self.holeStatus.copy()
 
+        # update mesh
         axis, angle = _utils.rotationMatrixToAxisAndAngle(rotationMatrix)
         block_p._mesh = self._mesh
         block_p._mesh.rotate(axis, 360-angle)
@@ -282,14 +282,12 @@ class Block(pyg4ometry.mcnp.Cell):
         h1Position, h1Direction = self.holeInfo[localHole]
 
         # connector creation
-        length = 1.5
         rotationMatrix = _utils.computeRotationMatrix(_np.array([0, 0, 1]), _np.array(h1Direction))
         direction = h1Direction / _np.linalg.norm(h1Direction)
-        translationVector = h1Position - (direction * (length / 2))
+        translationVector = h1Position - (direction * (_connector.length / 2))
 
         # connector at the origin
         connector = _connector.Connector(
-            length=length,
             cellNumber=cellNumber,
             reg=reg
         )
