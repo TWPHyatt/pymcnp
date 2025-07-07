@@ -2,14 +2,26 @@ import pyg4ometry
 import numpy as _np
 from ..blockphantom import utils as _utils
 
+length = 1.5
+radius = 0.3
+
 class Connector(pyg4ometry.mcnp.Cell):
-    def __init__(self, translation=[0, 0, 0], rotationSteps=[0, 0, 0], length=1.5, cellNumber=None, reg=None):
+    connectorCache = None
+    def __init__(self, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
+        self._mesh = None
         super().__init__(surfaces=[], reg=reg)  # a connector is a cell
 
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
         translationVector = _np.array(translation)
 
-        surface = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, length, 0.3)
+        surface = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, length, radius)
+
+        if Connector.connectorCache is None:
+            print("caching connector mesh...")
+            Connector.connectorCache = self.mesh()
+            print(" > cache complete")
+
+        self._mesh = Connector.connectorCache.clone()
 
         surface_p = surface.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist())
 
@@ -59,4 +71,19 @@ class Connector(pyg4ometry.mcnp.Cell):
         connector_p.surfaceList = surfaces_p
         connector_p.geometry = surfaces_p[0]
 
+        # update mesh
+        axis, angle = _utils.rotationMatrixToAxisAndAngle(rotationMatrix)
+        connector_p._mesh = self._mesh
+        connector_p._mesh.rotate(axis, 360-angle)
+        connector_p._mesh.translate(translationVector)
+
         return connector_p
+
+    def mesh(self):
+        if self._mesh is not None:
+            return self._mesh
+        else:
+            surface = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, length, radius)
+            super().__init__(surfaces=surface, geometry=surface)  # a block is a cell
+            return super().mesh()
+
