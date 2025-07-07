@@ -7,7 +7,11 @@ fullBlockDim = [11.0, 16.5, 5.5]  # dimensions of a full block
 halfBlockDim = [11.0, 16.5, 2.5]  # dimensions of a half block
 
 class Block(pyg4ometry.mcnp.Cell):
+    fullBlockCache = None
+    halfBlockCache = None
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
+        self._mesh = None
+
         super().__init__(surfaces=[], reg=reg)  # a block is a cell
         self.blockType = blockType
         self.dim = fullBlockDim if blockType == "full" else halfBlockDim if blockType == "half" else None
@@ -26,6 +30,19 @@ class Block(pyg4ometry.mcnp.Cell):
         self.holeInfo = self._defineHoles()
         surfaces = self._makeSurfaces()
 
+        if Block.fullBlockCache is None:
+            print("caching full block mesh...")
+            Block.fullBlockCache = self.mesh()
+            print(" > cache complete")
+        if Block.halfBlockCache is None:
+            print("caching half block mesh...")
+            Block.halfBlockCache = self.mesh()
+            print(" > cache complete")
+        if blockType == "full":
+            self._mesh = Block.fullBlockCache.clone()
+        elif blockType == "half":
+            self._mesh = Block.halfBlockCache.clone()
+
         # apply transformations to holes to make them global space
         self.holeInfo = self._transformHoles(rotationMatrix, translationVector)
 
@@ -39,6 +56,11 @@ class Block(pyg4ometry.mcnp.Cell):
 
         # apply transformations to surfaces to make them global space
         surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in surfaces]  # transformed surfaces
+        # update mesh
+        axis, angle = _utils.rotationMatrixToAxisAndAngle(rotationMatrix)
+        self._mesh = self._mesh
+        self._mesh.rotate(axis, 360-angle)
+        self._mesh.translate(translationVector)
 
         if reg:
             # add s to registry and generate unique surfaceNumbers
@@ -163,6 +185,11 @@ class Block(pyg4ometry.mcnp.Cell):
         block_p.geometry = block_p._makeGeometry(surfaces_p)
         block_p.holeInfo = self._transformHoles(rotationMatrix, translationVector)
         block_p.holeStatus = self.holeStatus.copy()
+
+        axis, angle = _utils.rotationMatrixToAxisAndAngle(rotationMatrix)
+        block_p._mesh = self._mesh
+        block_p._mesh.rotate(axis, 360-angle)
+        block_p._mesh.translate(translationVector)
 
         return block_p
 
@@ -301,5 +328,13 @@ class Block(pyg4ometry.mcnp.Cell):
 
         # todo update hole status  - some holes will become uncovered and some covered
 
-
         return block_p
+
+    def mesh(self):
+        if self._mesh is not None:
+            return self._mesh
+        else:
+            surfaces = self._makeSurfaces()
+            geometry = self._makeGeometry(surfaces)
+            super().__init__(surfaces=surfaces, geometry=geometry)  # a block is a cell
+            return super().mesh()
