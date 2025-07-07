@@ -3,12 +3,14 @@ import numpy as _np
 from ..blockphantom import utils as _utils
 from ..blockphantom import connector as _connector
 
+fullBlockDim = [11.0, 16.5, 5.5]  # dimensions of a full block
+halfBlockDim = [11.0, 16.5, 2.5]  # dimensions of a half block
 
 class Block(pyg4ometry.mcnp.Cell):
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
         super().__init__(surfaces=[], reg=reg)  # a block is a cell
         self.blockType = blockType
-        self.dim = [11.0, 16.5, 5.5] if blockType == "full" else [11.0, 16.5, 2.5] if blockType == "half" else None
+        self.dim = fullBlockDim if blockType == "full" else halfBlockDim if blockType == "half" else None
         if self.dim is None:
             msg = f"Block type can only be 'full' or 'half'"
             raise TypeError(msg)
@@ -212,24 +214,18 @@ class Block(pyg4ometry.mcnp.Cell):
         h2Position_rotated = rotationMatrix @ h2Position
         translationVector = h1Position - h2Position_rotated
         print(f"tr: {translationVector}")
+        print(f"h2Pos_p: {h2Position_rotated}")
 
         # apply transformation to the new block
         block_p = block_p.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist(), isRotationMatrix=True)
 
-        print(f"connecting...")
-        h113Position, h113Direction = self.holeInfo[13]
-        print(f"({13}) h1: {h113Position} , {h113Direction}")
-        h213Position, h213Direction = block_p.holeInfo[13]
-        print(f"({13}) h2: {h213Position} , {h213Direction}")
-
-        # update hole status as connected
+        # update connected hole status for new block
         self.holeStatus[localHole]["connected"] = True
+        # update connected hole status for local block
         block_p.holeStatus[newBlockHole]["connected"] = True
 
-        # update hole status as covered for overlapped holes
-        for holeNum, hole in enumerate(self.holeInfo):
-            if self._isPointInsideBlock(block_p.dim, rotationMatrix, translationVector, hole[0]):
-                self.holeStatus[holeNum]["covered"] = True  # update hole status for holes under block as 'covered'
+        # update covered hole status for new block and local block
+        # ToDo
 
         # make connector
         if makeConnector:
@@ -304,5 +300,6 @@ class Block(pyg4ometry.mcnp.Cell):
         block_p = block_p.transform(translation=holePosition, rotation=[0, 0, 0])
 
         # todo update hole status  - some holes will become uncovered and some covered
+
 
         return block_p
