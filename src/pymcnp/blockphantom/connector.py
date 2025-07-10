@@ -2,8 +2,8 @@ import pyg4ometry
 import numpy as _np
 from ..blockphantom import utils as _utils
 
-length = 1.5
-radius = 0.3
+length = 2
+radius = 0.39
 
 class Connector(pyg4ometry.mcnp.Cell):
     connectorCache = None
