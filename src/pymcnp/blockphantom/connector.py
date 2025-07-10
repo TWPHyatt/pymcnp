@@ -34,7 +34,7 @@ class Connector(pyg4ometry.mcnp.Cell):
             reg.surfaceDict[surface_p.surfaceNumber] = surface_p
             self.addSurface(surface_p)  # also add to the cell's surfaceList
         else:
-            self.surfaceList = surface_p  # cell's surfaceList
+            self.surfaceList = [surface_p]  # cell's surfaceList
 
         if reg:
             m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92, reg=reg)  # polyethylene
@@ -84,6 +84,6 @@ class Connector(pyg4ometry.mcnp.Cell):
             return self._mesh
         else:
             surface = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, length, radius)
-            super().__init__(surfaces=surface, geometry=surface)  # a block is a cell
+            super().__init__(surfaces=[surface], geometry=surface)  # a block is a cell
             return super().mesh()
 
