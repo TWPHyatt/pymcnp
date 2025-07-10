@@ -11,7 +11,6 @@ class Block(pyg4ometry.mcnp.Cell):
     halfBlockCache = None
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
         self._mesh = None
-        super().__init__(surfaces=[], reg=reg)  # a block is a cell
         self.blockType = blockType
         self.dim = fullBlockDim if blockType == "full" else halfBlockDim if blockType == "half" else None
         if self.dim is None:
@@ -25,22 +24,8 @@ class Block(pyg4ometry.mcnp.Cell):
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
         translationVector = _np.array(translation)
 
-        # define holes and surfaces in local space
+        # define holes in local space
         self.holeInfo = self._defineHoles()
-        surfaces = self._makeSurfaces()
-
-        if Block.fullBlockCache is None:
-            print("caching full block mesh...")
-            Block.fullBlockCache = self.mesh()
-            print(" > cache complete")
-        if Block.halfBlockCache is None:
-            print("caching half block mesh...")
-            Block.halfBlockCache = self.mesh()
-            print(" > cache complete")
-        if blockType == "full":
-            self._mesh = Block.fullBlockCache.clone()
-        elif blockType == "half":
-            self._mesh = Block.halfBlockCache.clone()
 
         # apply transformations to holes to make them global space
         self.holeInfo = self._transformHoles(rotationMatrix, translationVector)
@@ -53,8 +38,28 @@ class Block(pyg4ometry.mcnp.Cell):
 
         self.holeStatus = {i: {"name": holeNames[i], "connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
+        if Block.fullBlockCache is None:
+            print("caching full block mesh...")
+            Block.fullBlockCache = self.mesh()
+            print(" > cache complete")
+        if Block.halfBlockCache is None:
+            print("caching half block mesh...")
+            Block.halfBlockCache = self.mesh()
+            print(" > cache complete")
+
+        super().__init__(surfaces=[], reg=reg)  # a block is a cell
+
+        if blockType == "full":
+            self._mesh = Block.fullBlockCache.clone()
+        elif blockType == "half":
+            self._mesh = Block.halfBlockCache.clone()
+
+        # define surfaces in local space
+        surfaces = self._makeSurfaces(reg)
+
         # apply transformations to surfaces to make them global space
         surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in surfaces]  # transformed surfaces
+
         # update mesh
         axis, angle = _utils.rotationMatrixToAxisAndAngle(rotationMatrix)
         self._mesh = self._mesh
