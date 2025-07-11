@@ -2,6 +2,7 @@ import pyg4ometry
 import numpy as _np
 from ..blockphantom import utils as _utils
 from ..blockphantom import connector as _connector
+import time
 
 fullBlockDim = [11.0, 16.5, 5.5]  # dimensions of a full block
 halfBlockDim = [11.0, 16.5, 2.5]  # dimensions of a half block
@@ -11,21 +12,48 @@ class Block(pyg4ometry.mcnp.Cell):
     halfBlockCache = None
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
         self._mesh = None
+        super().__init__(surfaces=[], reg=reg)  # a block is a cell
+
         self.blockType = blockType
         self.dim = fullBlockDim if blockType == "full" else halfBlockDim if blockType == "half" else None
         if self.dim is None:
             msg = f"Block type can only be 'full' or 'half'"
             raise TypeError(msg)
-
         self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
+
+        # define holes in local space
+        self.holeInfo = self._defineHoles()
+        # define surfaces in local space
+        surfaces = self._makeSurfaces()
+        # set cell surfaces
+        self.addSurfaces(surfaces)
+        # set cell geometry
+        self.addGeometry(self._makeGeometry(self.surfaceList))
+
+        # cash mesh if needed
+        if blockType == "full" and Block.fullBlockCache is None:
+            start_time = time.time()
+            print("caching full block mesh...")
+            Block.fullBlockCache = self.mesh()
+            print("%s seconds to mesh full block" % (time.time() - start_time))
+            print(" > cache complete")
+        if blockType == "half" and Block.halfBlockCache is None:
+            start_time = time.time()
+            print("caching half block mesh...")
+            Block.halfBlockCache = self.mesh()
+            print("%s seconds to mesh half block" % (time.time() - start_time))
+            print(" > cache complete")
+
+        # copy cashed mesh for this block
+        if blockType == "full":
+            self._mesh = Block.fullBlockCache.clone()
+        elif blockType == "half":
+            self._mesh = Block.halfBlockCache.clone()
 
         # user inputted block transforms
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
         translationVector = _np.array(translation)
-
-        # define holes in local space
-        self.holeInfo = self._defineHoles()
 
         # apply transformations to holes to make them global space
         self.holeInfo = self._transformHoles(rotationMatrix, translationVector)
@@ -38,25 +66,6 @@ class Block(pyg4ometry.mcnp.Cell):
 
         self.holeStatus = {i: {"name": holeNames[i], "connected": False, "covered": False, "hasConnector": False} for i in range(len(self.holeInfo))}
 
-        if Block.fullBlockCache is None:
-            print("caching full block mesh...")
-            Block.fullBlockCache = self.mesh()
-            print(" > cache complete")
-        if Block.halfBlockCache is None:
-            print("caching half block mesh...")
-            Block.halfBlockCache = self.mesh()
-            print(" > cache complete")
-
-        super().__init__(surfaces=[], reg=reg)  # a block is a cell
-
-        if blockType == "full":
-            self._mesh = Block.fullBlockCache.clone()
-        elif blockType == "half":
-            self._mesh = Block.halfBlockCache.clone()
-
-        # define surfaces in local space
-        surfaces = self._makeSurfaces(reg)
-
         # apply transformations to surfaces to make them global space
         surfaces_p = [s.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist()) for s in surfaces]  # transformed surfaces
 
@@ -65,6 +74,9 @@ class Block(pyg4ometry.mcnp.Cell):
         self._mesh = self._mesh
         self._mesh.rotate(axis, 360-angle)
         self._mesh.translate(translationVector)
+
+        # update geometry
+        self.addGeometry(self._makeGeometry(self.surfaceList))
 
         if reg:
             # add s to registry and generate unique surfaceNumbers
@@ -82,7 +94,7 @@ class Block(pyg4ometry.mcnp.Cell):
             m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92, reg=reg)  # polyethylene
             self.addMaterial(m1)
 
-        self.addGeometry(self._makeGeometry(self.surfaceList))
+
 
     def printHoleInfo(self):
         msg = f""
@@ -135,18 +147,18 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return holeInfo_p
 
-    def _makeSurfaces(self, reg=None):
-        surfaces = [pyg4ometry.mcnp.PX((-self.dim[0] / 2), surfaceNumber=1, reg=reg),  # px1 (left)
-                    pyg4ometry.mcnp.PX((self.dim[0] / 2), surfaceNumber=2, reg=reg),   # px2 (right)
-                    pyg4ometry.mcnp.PY((-self.dim[1] / 2), surfaceNumber=3, reg=reg),  # py1 (bottom)
-                    pyg4ometry.mcnp.PY((self.dim[1] / 2), surfaceNumber=4, reg=reg),   # py2 (top)
-                    pyg4ometry.mcnp.PZ((-self.dim[2] / 2), surfaceNumber=5, reg=reg),  # pz1 (back)
-                    pyg4ometry.mcnp.PZ((self.dim[2] / 2), surfaceNumber=6, reg=reg),   # pz2 (front)
+    def _makeSurfaces(self):
+        surfaces = [pyg4ometry.mcnp.PX((-self.dim[0] / 2), surfaceNumber=1),  # px1 (left)
+                    pyg4ometry.mcnp.PX((self.dim[0] / 2), surfaceNumber=2),   # px2 (right)
+                    pyg4ometry.mcnp.PY((-self.dim[1] / 2), surfaceNumber=3),  # py1 (bottom)
+                    pyg4ometry.mcnp.PY((self.dim[1] / 2), surfaceNumber=4),   # py2 (top)
+                    pyg4ometry.mcnp.PZ((-self.dim[2] / 2), surfaceNumber=5),  # pz1 (back)
+                    pyg4ometry.mcnp.PZ((self.dim[2] / 2), surfaceNumber=6),   # pz2 (front)
                     ]
         i = len(surfaces)
         for holePosition, holeDirection in self.holeInfo:
             i = i + 1
-            surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4, surfaceNumber=i, reg=reg))
+            surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4, surfaceNumber=i))
 
         return surfaces
 
@@ -337,7 +349,4 @@ class Block(pyg4ometry.mcnp.Cell):
         if self._mesh is not None:
             return self._mesh
         else:
-            surfaces = self._makeSurfaces()
-            geometry = self._makeGeometry(surfaces)
-            super().__init__(surfaces=surfaces, geometry=geometry)  # a block is a cell
             return super().mesh()
