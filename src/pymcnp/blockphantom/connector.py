@@ -26,7 +26,7 @@ class Connector(pyg4ometry.mcnp.Cell):
         surface_p = surface.transform(translation=translationVector.tolist(), rotation=rotationMatrix.tolist())
 
         if reg:
-            # add s to registry and generate unique surfaceNumbers
+            # add surfaces to registry and generate unique surfaceNumbers
             if surface_p.surfaceNumber in reg.surfaceDict:
                 surface_p.surfaceNumber = reg.getNewSurfaceNumber()
             if not surface_p.surfaceNumber:
