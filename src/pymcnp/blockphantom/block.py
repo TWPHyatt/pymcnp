@@ -27,9 +27,13 @@ class Block(pyg4ometry.mcnp.Cell):
         # define surfaces in local space
         surfaces = self._makeSurfaces()
         # set cell surfaces
-        self.addSurfaces(surfaces)
+        if reg:
+            self.addSurfaces(surfaces)
+        else:
+            self.surfaceList.extend(surfaces)
         # set cell geometry
-        self.addGeometry(self._makeGeometry(self.surfaceList))
+        geometry = self._makeGeometry(self.surfaceList)
+        self.addGeometry(geometry)
 
         # cash mesh if needed
         if blockType == "full" and Block.fullBlockCache is None:
