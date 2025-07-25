@@ -21,15 +21,15 @@ def test_twoBlocksWrite(write=False):
     cVoid = pyg4ometry.mcnp.Cell(reg=reg)
 
     # SURFACES
-    s1 = pyg4ometry.mcnp.SO(5, reg=reg)
+    s1 = pyg4ometry.mcnp.SO(25, reg=reg)
     cWorld.addSurface(block1.geometry)  # cell2 is between block1 /
     cWorld.addSurface(s1)  # / and s1
     cVoid.addSurface(s1)  # cell3 is outside s1
 
     # MATERIAL
     m0 = pyg4ometry.mcnp.Material(0, reg=reg)
-    m1 = pyg4ometry.mcnp.Material(1, -1.225, reg=reg)
-    cWorld.addMaterial(m1)
+    m2 = pyg4ometry.mcnp.Material(2, -0.001225, reg=reg)
+    cWorld.addMaterial(m2)
     cVoid.addMaterial(m0)
 
     # GEOMETRY
@@ -39,11 +39,11 @@ def test_twoBlocksWrite(write=False):
     cVoid.addGeometry(geo3)
 
     # IMPORTANCE
-    i1 = pyg4ometry.mcnp.IMP("p", 0)
-    i2 = pyg4ometry.mcnp.IMP("p", 1)
-    block1.addImportance(i2)
-    cWorld.addImportance(i2)
-    cVoid.addImportance(i1)
+    i0 = pyg4ometry.mcnp.IMP("p", 0)
+    i1 = pyg4ometry.mcnp.IMP("p", 1)
+    block1.addImportance(i1)
+    cWorld.addImportance(i1)
+    cVoid.addImportance(i0)
 
     if write:
         f = pyg4ometry.mcnp.Writer(columnMax=60)
