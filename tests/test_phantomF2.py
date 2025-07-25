@@ -49,6 +49,8 @@ def test_phantomF2(vis=False, write=False):
     #b16 = b16.rotateAboutConnection(hole=14, rotationSteps=[0, -1, 0])
     #[b17, b17c1] = b10.makeNewConnectedBlock("full", 0, 14, makeConnector=True)
 
+    # TODO add materials, importance, void & world cells and geometries, etc... for writer
+
     if write:
         f = pyg4ometry.mcnp.Writer(columnMax=75)
         f.setTitle("PHANTOM F2")
