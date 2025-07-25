@@ -1,7 +1,7 @@
 import pyg4ometry
 import pymcnp
 
-def test_rotBlocksVis(vis=False):
+def test_fourBlocksRotVis(vis=False):
     """
     test rotating blocks about connection points
     :param vis: visualisation
@@ -36,7 +36,7 @@ def test_rotBlocksVis(vis=False):
 
 
 # remove comment when debugging
-#test_rotBlocksVis(True)
+#test_fourBlocksRotVis(True)
 
 if __name__ == "__main__":
-    test_rotBlocksVis(True)
+    test_fourBlocksRotVis(True)

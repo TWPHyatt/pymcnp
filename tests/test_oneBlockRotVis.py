@@ -22,7 +22,7 @@ def test_oneBlockVis(vis=False):
 
 
 # remove comment when debugging
-#test_oneBlockVis(True)
+#test_oneBlockRotVis(True)
 
 if __name__ == "__main__":
     test_oneBlockVis(True)

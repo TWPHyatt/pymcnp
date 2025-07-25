@@ -13,7 +13,7 @@ def test_oneBlockWrite(write=False):
 
     # CELLS
     # --- PHANTOM ---
-    block1 = pymcnp.blockphantom.Block("full", rotationSteps=[0, 0, 0], reg=reg)
+    block1 = pymcnp.blockphantom.Block("full", rotationSteps=[0, 0, 1], reg=reg)
 
     # --- WORLD ---
     cWorld = pyg4ometry.mcnp.Cell(reg=reg)
@@ -46,13 +46,13 @@ def test_oneBlockWrite(write=False):
 
     if write:
         f = pyg4ometry.mcnp.Writer(columnMax=60)
-        f.setTitle("SINGLE ISOLATED BLOCK")
+        f.setTitle("SINGLE ROTATED ISOLATED BLOCK")
         f.addGeometry(reg=reg)
         f.write("i-oneBlock.txt")
 
 
 # remove comment when debugging
-#test_oneBlockWrite(True)
+#test_oneBlockRotWrite(True)
 
 if __name__ == "__main__":
     test_oneBlockWrite(True)
