@@ -26,9 +26,9 @@ def test_oneBlockWrite(write=False):
     cVoid.addSurface(s1)  # cell3 is outside s1
 
     # MATERIAL
-    m99 = pyg4ometry.mcnp.Material(99, -1.225, reg=reg)  # air
+    m2 = pyg4ometry.mcnp.Material(2, -0.001225, reg=reg)
     m0 = pyg4ometry.mcnp.Material(0, reg=reg)  # vacuum
-    cWorld.addMaterial(m99)
+    cWorld.addMaterial(m2)
     cVoid.addMaterial(m0)
 
     # GEOMETRY
