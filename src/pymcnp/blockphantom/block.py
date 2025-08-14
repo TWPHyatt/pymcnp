@@ -19,11 +19,10 @@ class Block(pyg4ometry.mcnp.Cell):
         if self.dim is None:
             msg = f"Block type can only be 'full' or 'half'"
             raise TypeError(msg)
-        self.small = 0.02  # to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
         self.unit = self.dim[1] / (3 * 2)  # hole separation unit on the surface of the block
 
         # define holes in local space
-        self.holeInfo = self._defineHoles()
+        self.holeInfo = self._defineHoles(D=0.01)
         # define surfaces in local space
         surfaces = self._makeSurfaces()
         # set cell surfaces
@@ -34,6 +33,7 @@ class Block(pyg4ometry.mcnp.Cell):
         # set cell geometry
         geometry = self._makeGeometry(self.surfaceList)
         self.addGeometry(geometry)
+        self.holeInfo = self._defineHoles(D=0)  # D=0 so coords are zero-ed (and any connectors will be centered)
 
         # cash mesh if needed
         if blockType == "full" and Block.fullBlockCache is None:
@@ -95,7 +95,7 @@ class Block(pyg4ometry.mcnp.Cell):
             self.surfaceList = surfaces_p  # cell's surfaceList
 
         if reg:
-            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92, reg=reg)  # polyethylene
+            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=-0.90, reg=reg)  # polyethylene
             self.addMaterial(m1)
 
 
@@ -106,37 +106,42 @@ class Block(pyg4ometry.mcnp.Cell):
             print(f"{i} {self.holeStatus[i]['name']} : connected {self.holeStatus[i]['connected']} covered {self.holeStatus[i]['covered']} hasConnector {self.holeStatus[i]['hasConnector']}")
         return
 
-    def _defineHoles(self):
+    def _defineHoles(self, D=0.01):
+        """
+        :param D: small value to extend past the planes of the box by 0.01 cm so no inf small surface mesh covering hole
+        :type D: float
+        :return:
+        """
         # define holes [xyz co-ordinates, xyz directions] relative to block center
         holes = [
-            [[-self.unit, -(self.dim[1] + self.small) / 2, 0], [0, self.dim[1]/2 + self.small, 0]],  # bottom tubeL
-            [[+self.unit, -(self.dim[1] + self.small) / 2, 0], [0, self.dim[1]/2 + self.small, 0]],  # bottom tubeR
-            [[-self.unit, (self.dim[1] + self.small) / 2, 0], [0, -self.dim[1]/2 - self.small, 0]],  # top tubeL
-            [[+self.unit, (self.dim[1] + self.small) / 2, 0], [0, -self.dim[1]/2 - self.small, 0]],  # top tubeR
-            [[-self.dim[0] / 2, +self.unit * 2, 0], [1 + (self.small / 2), 0, 0]],  # holeL1
-            [[-self.dim[0] / 2, 0, 0], [1 + (self.small / 2), 0, 0]],               # holeL2
-            [[-self.dim[0] / 2, -self.unit * 2, 0], [1 + (self.small / 2), 0, 0]],  # holeL3
-            [[self.dim[0] / 2, +self.unit * 2, 0], [-1 - (self.small / 2), 0, 0]],  # holeR1
-            [[self.dim[0] / 2, 0, 0], [-1 - (self.small / 2), 0, 0]],               # holeR2
-            [[self.dim[0] / 2, -self.unit * 2, 0], [-1 - (self.small / 2), 0, 0]],  # holeR3
-            [[-self.unit, +self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],  # holeF1
-            [[+self.unit, +self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],  # holeF2
-            [[-self.unit, 0, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],               # holeF3
-            [[0, 0, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],                        # holeF4
-            [[+self.unit, 0, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],               # holeF5
-            [[-self.unit, -self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],  # holeF6
-            [[+self.unit, -self.unit * 2, (self.dim[2] + self.small) / 2], [0, 0, -1 - (self.small / 2)]],  # holeF7
+            [[-self.unit, -(self.dim[1]/2) - D, 0], [0, (self.dim[1]/2) + D, 0]],  # 0 bottom tubeL
+            [[+self.unit, -(self.dim[1]/2) - D, 0], [0, (self.dim[1]/2) + D, 0]],  # 1 bottom tubeR
+            [[-self.unit, (self.dim[1]/2) + D, 0], [0, (-self.dim[1]/2) - D - 0.0001, 0]],  # 2 top tubeL
+            [[+self.unit, (self.dim[1]/2) + D, 0], [0, (-self.dim[1]/2) - D - 0.0001, 0]],  # 3 top tubeR
+            [[(-self.dim[0]/2) - D, +self.unit * 2, 0], [1 + D, 0, 0]],  # 4 holeL1
+            [[(-self.dim[0]/2) - D, 0, 0], [1 + D, 0, 0]],               # 5 holeL2
+            [[(-self.dim[0]/2) - D, -self.unit * 2, 0], [1 + D, 0, 0]],  # 6 holeL3
+            [[(self.dim[0]/2) + D, +self.unit * 2, 0], [-1 - D, 0, 0]],  # 7 holeR1
+            [[(self.dim[0]/2) + D, 0, 0], [-1 - D, 0, 0]],          # 8 holeR2
+            [[(self.dim[0]/2) + D, -self.unit * 2, 0], [-1 - D, 0, 0]],  # 9 holeR3
+            [[-self.unit, +self.unit * 2, (self.dim[2]/2) + D], [0, 0, -1 - D]],  # 10 holeF1
+            [[+self.unit, +self.unit * 2, (self.dim[2]/2) + D], [0, 0, -1 - D]],  # 11 holeF2
+            [[-self.unit, 0, (self.dim[2]/2) + D], [0, 0, -1 - D]],               # 12 holeF3
+            [[0, 0, (self.dim[2]/2) + D], [0, 0, -1 - D]],                        # 13 holeF4
+            [[+self.unit, 0, (self.dim[2]/2) + D], [0, 0, -1 - D]],               # 14 holeF5
+            [[-self.unit, -self.unit * 2, (self.dim[2]/2) + D], [0, 0, -1 - D]],  # 15 holeF6
+            [[+self.unit, -self.unit * 2, (self.dim[2]/2) + D], [0, 0, -1 - D]],  # 16 holeF7
         ]
 
         if self.blockType == "full":
             holesBack = [
-                [[-self.unit, +self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]],  # holeB1
-                [[+self.unit, +self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]],  # holeB2
-                [[-self.unit, 0, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]],               # holeB3
-                [[0, 0, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]],                        # holeB4
-                [[+self.unit, 0, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]],               # holeB5
-                [[-self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]],  # holeB6
-                [[+self.unit, -self.unit * 2, -(self.dim[2] + self.small) / 2], [0, 0, 1 + (self.small / 2)]],  # holeB7
+                [[-self.unit, +self.unit * 2, (-self.dim[2]/2) - D], [0, 0, 1 + D]],  # 17 holeB1
+                [[+self.unit, +self.unit * 2, (-self.dim[2]/2) - D], [0, 0, 1 + D]],  # 18 holeB2
+                [[-self.unit, 0, (-self.dim[2]/2) - D], [0, 0, 1 + D]],               # 19 holeB3
+                [[0, 0, (-self.dim[2]/2) - D], [0, 0, 1 + D]],                        # 20 holeB4
+                [[+self.unit, 0, (-self.dim[2]/2) - D], [0, 0, 1 + D]],               # 21 holeB5
+                [[-self.unit, -self.unit * 2, (-self.dim[2]/2) - D], [0, 0, 1 + D]],  # 22 holeB6
+                [[+self.unit, -self.unit * 2, (-self.dim[2]/2) - D], [0, 0, 1 + D]],  # 23 holeB7
             ]
             holes.extend(holesBack)
 
@@ -160,6 +165,7 @@ class Block(pyg4ometry.mcnp.Cell):
                     pyg4ometry.mcnp.PZ((self.dim[2] / 2), surfaceNumber=6),   # pz2 (front)
                     ]
         i = len(surfaces)
+
         for holePosition, holeDirection in self.holeInfo:
             i = i + 1
             surfaces.append(pyg4ometry.mcnp.RCC(*holePosition, *holeDirection, 0.4, surfaceNumber=i))
