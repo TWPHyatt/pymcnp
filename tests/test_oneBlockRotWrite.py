@@ -48,7 +48,7 @@ def test_oneBlockWrite(write=False):
         f = pyg4ometry.mcnp.Writer(columnMax=60)
         f.setTitle("SINGLE ROTATED ISOLATED BLOCK")
         f.addGeometry(reg=reg)
-        f.write("i-oneBlock.txt")
+        f.write("i-oneBlockRot.txt")
 
 
 # remove comment when debugging

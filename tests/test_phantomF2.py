@@ -13,10 +13,10 @@ def test_phantomF2(vis=False, write=False):
     """
     reg = pyg4ometry.mcnp.Registry()
 
-    # crotch
+    # CROTCH
     b1 = pymcnp.blockphantom.Block("full", rotationSteps=[0, 1, 1])
 
-    # left leg
+    # LEFT LEG
     [b2, b2c1] = b1.makeNewConnectedBlock("full", 2, 22, makeConnector=True)
     b2 = b2.rotateAboutConnection(hole=2, rotationSteps=[0, 1, 0])
     [b3, b3c1] = b2.makeNewConnectedBlock("full", 2, 0, makeConnector=True)
@@ -25,7 +25,7 @@ def test_phantomF2(vis=False, write=False):
     b4 = b4.rotateAboutConnection(hole=2, rotationSteps=[0, 1, 0])
     [b5, b5c1] = b2.makeNewConnectedBlock("half", 13, 13, makeConnector=True)
 
-    # right leg
+    # RIGHT LEG
     [b6, b6c1] = b1.makeNewConnectedBlock("full", 2, 17, makeConnector=True)
     b6 = b6.rotateAboutConnection(hole=2, rotationSteps=[0, 1,   0])
     [b7, b7c1] = b6.makeNewConnectedBlock("full", 2, 0, makeConnector=True)
@@ -34,7 +34,7 @@ def test_phantomF2(vis=False, write=False):
     b8 = b8.rotateAboutConnection(hole=2, rotationSteps=[0, 1, 0])
     #[b9, b9c1] = b6.makeNewConnectedBlock("half", 13, 20, makeConnector=True)
 
-    # lower abdomen
+    # LOWER ABDOMEN
     #[b10, b10c1] = b1.makeNewConnectedBlock("full", 0, 12, makeConnector=True)
     #b10 = b10.rotateAboutConnection(hole=0, rotationSteps=[0, -1, 0])
     #[b11, b11c1] = b10.makeNewConnectedBlock("full", 20, 13, makeConnector=True)
@@ -42,7 +42,7 @@ def test_phantomF2(vis=False, write=False):
     #[b13, b13c1] = b11.makeNewConnectedBlock("full", 21, 11, makeConnector=True)
     #[b14, b14c1] = b12.makeNewConnectedBlock("full", 12, 11, makeConnector=True)
 
-    # torso
+    # TORSO
     #[b15, b15c1] = b10.makeNewConnectedBlock("full", 14, 3, makeConnector=True)
     #b15 = b15.rotateAboutConnection(hole=14, rotationSteps=[0, -1, 0])
     #[b16, b16c1] = b15.makeNewConnectedBlock("full", 14, 21, makeConnector=True)

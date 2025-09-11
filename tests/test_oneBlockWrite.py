@@ -52,7 +52,7 @@ def test_oneBlockWrite(write=False):
 
 
 # remove comment when debugging
-#test_oneBlockWrite(True)
+test_oneBlockWrite(True)
 
 if __name__ == "__main__":
     test_oneBlockWrite(True)
