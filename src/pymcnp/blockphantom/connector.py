@@ -36,7 +36,9 @@ class Connector(pyg4ometry.mcnp.Cell):
         else:
             self.surfaceList = [surface_p]  # cell's surfaceList
 
-        super().__init__(surfaces=[surface_p], geometry=surface_p, cellNumber=self.cellNumber, reg=reg)
+        geometry = pyg4ometry.mcnp.Complement(surface_p)
+
+        super().__init__(surfaces=[surface_p], geometry=geometry, cellNumber=self.cellNumber, reg=reg)
 
         m2 = pyg4ometry.mcnp.Material(materialNumber=2, density=2.699, reg=reg)  # aluminium
         if reg:
@@ -65,7 +67,7 @@ class Connector(pyg4ometry.mcnp.Cell):
 
         # update the new connector
         connector_p.surfaceList = surfaces_p
-        connector_p.geometry = surfaces_p[0]
+        connector_p.geometry = pyg4ometry.mcnp.Complement(surfaces_p[0])
 
         # update mesh
         axis, angle = _utils.rotationMatrixToAxisAndAngle(rotationMatrix)
