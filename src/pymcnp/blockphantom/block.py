@@ -12,7 +12,7 @@ class Block(pyg4ometry.mcnp.Cell):
     halfBlockCache = None
     def __init__(self, blockType, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
         self._mesh = None
-        super().__init__(surfaces=[], reg=reg)  # a block is a cell
+        super().__init__(surfaces=[], cellNumber=cellNumber, reg=reg)  # a block is a cell
 
         self.blockType = blockType
         self.dim = fullBlockDim if blockType == "full" else halfBlockDim if blockType == "half" else None
@@ -90,15 +90,13 @@ class Block(pyg4ometry.mcnp.Cell):
                 if not s_p.surfaceNumber:
                     s_p.surfaceNumber = reg.getNewSurfaceNumber()
                 reg.surfaceDict[s_p.surfaceNumber] = s_p
-                self.addSurface(s_p)  # also add to the cell's surfaceList
-        else:
-            self.surfaceList = surfaces_p  # cell's surfaceList
+                #self.addSurface(s_p)  # also add to the cell's surfaceList
+        self.surfaceList = surfaces_p  # update the cell's surfaceList
 
+        m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=-0.90, reg=reg)  # polyethylene
         if reg:
-            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=-0.90, reg=reg)  # polyethylene
-            self.addMaterial(m1)
-
-
+            reg.addMaterial(m1, replace=True)
+        self.addMaterial(m1)
 
     def printHoleInfo(self):
         msg = f""
@@ -286,13 +284,19 @@ class Block(pyg4ometry.mcnp.Cell):
             if self.holeStatus[localHole]["hasConnector"]:
                 msg = f"Hole {localHole} already has a connector"
                 raise ValueError(msg)
-            if cellNumber is not None:
-                cellNumber = cellNumber+1
-            connector = self.addConnector(localHole, cellNumber, reg)
+            connector = self.addConnector(localHole=localHole, reg=reg)
             self.holeStatus[localHole]["hasConnector"] = True
             block_p.holeStatus[newBlockHole]["hasConnector"] = True
+            if reg:
+                reg.addCell(block_p, replace=True)
+                reg.addSurfaces(block_p.surfaceList, replace=True)
+                reg.addCell(connector, replace=True)
+                reg.addSurfaces(connector.surfaceList, replace=True)
             return [block_p, connector]
 
+        if reg:
+            reg.addCell(block_p, replace=True)
+            reg.addSurfaces(block_p.surfaceList, replace=True)
         return block_p
 
     def addConnector(self, localHole, cellNumber=None, reg=None):
@@ -323,7 +327,7 @@ class Block(pyg4ometry.mcnp.Cell):
 
         return connector_p
 
-    def rotateAboutConnection(self, hole, rotationSteps):
+    def rotateAboutConnection(self, hole, rotationSteps, reg=False):
         """
         un-transform block so hole is at origin and then apply rotation and translate back
         """
@@ -350,6 +354,10 @@ class Block(pyg4ometry.mcnp.Cell):
         block_p = block_p.transform(translation=[0, 0, 0], rotation=rotationSteps)
         # move block back to connection
         block_p = block_p.transform(translation=holePosition, rotation=[0, 0, 0])
+
+        if reg:
+            reg.addCell(block_p, replace=True)
+            reg.addSurfaces(block_p.surfaceList, replace=True)
 
         # todo update hole status  - some holes will become uncovered and some covered
 

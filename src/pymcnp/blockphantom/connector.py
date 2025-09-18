@@ -9,7 +9,7 @@ class Connector(pyg4ometry.mcnp.Cell):
     connectorCache = None
     def __init__(self, translation=[0, 0, 0], rotationSteps=[0, 0, 0], cellNumber=None, reg=None):
         self._mesh = None
-        super().__init__(surfaces=[], reg=reg)  # a connector is a cell
+        super().__init__(surfaces=[], cellNumber=cellNumber, reg=reg)  # a connector is a cell
 
         rotationMatrix = _utils.rotationStepsToMatrix(rotationSteps)
         translationVector = _np.array(translation)
@@ -36,16 +36,12 @@ class Connector(pyg4ometry.mcnp.Cell):
         else:
             self.surfaceList = [surface_p]  # cell's surfaceList
 
-        if reg:
-            m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=0.92, reg=reg)  # polyethylene
-            self.addMaterial(m1)
+        super().__init__(surfaces=[surface_p], geometry=surface_p, cellNumber=self.cellNumber, reg=reg)
 
-        super().__init__(surfaces=[surface_p], geometry=surface_p, cellNumber=cellNumber, materialNumber=2, reg=reg)
-
+        m2 = pyg4ometry.mcnp.Material(materialNumber=2, density=2.699, reg=reg)  # aluminium
         if reg:
-            m2 = pyg4ometry.mcnp.Material(materialNumber=2, density=2.699)  # aluminium
-            reg.addMaterial(m2)
-            self.addMaterial(m2)
+            reg.addMaterial(m2, replace=True)
+        self.addMaterial(m2)
 
     def transform(self, translation=[0, 0, 0], rotation=[0, 0, 0], isRotationMatrix=False):
         if isRotationMatrix:
@@ -84,6 +80,6 @@ class Connector(pyg4ometry.mcnp.Cell):
             return self._mesh
         else:
             surface = pyg4ometry.mcnp.RCC(0, 0, 0, 0, 0, length, radius)
-            super().__init__(surfaces=[surface], geometry=surface)  # a block is a cell
+            super().__init__(surfaces=[surface], cellNumber=self.cellNumber, geometry=surface)  # a block is a cell
             return super().mesh()
 
