@@ -178,8 +178,7 @@ class Block(pyg4ometry.mcnp.Cell):
         geom = pyg4ometry.mcnp.Intersection(geomBoxZ, pyg4ometry.mcnp.Intersection(geomBoxY, geomBoxX))
         # connector holes
         for s in surfaces[6:]:
-            #geom = pyg4ometry.mcnp.Intersection(geom, s)
-            geom = pyg4ometry.mcnp.Intersection(geom, s)
+            geom = pyg4ometry.mcnp.Intersection(geom, pyg4ometry.mcnp.Complement(s))
 
         return geom
 
