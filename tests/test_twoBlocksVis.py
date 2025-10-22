@@ -20,7 +20,7 @@ def test_twoBlocksVis(vis=False):
         v = pyg4ometry.visualisation.VtkViewer()
         v.addAxes()
         v.addMeshSimple(block1.mesh(), name="b1.mesh")
-        #v.addMeshSimple(block2.mesh(), name="b2.mesh")
+        v.addMeshSimple(block2.mesh(), name="b2.mesh")
         v.addMeshSimple(con2.mesh(), name="b2c.mesh")
 
         v.view()
