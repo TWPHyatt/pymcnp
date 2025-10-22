@@ -93,7 +93,7 @@ class Block(pyg4ometry.mcnp.Cell):
                 #self.addSurface(s_p)  # also add to the cell's surfaceList
         self.surfaceList = surfaces_p  # update the cell's surfaceList
 
-        m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=-0.90, reg=reg)  # polyethylene
+        m1 = pyg4ometry.mcnp.Material(materialNumber=1, density=-0.9016, reg=reg)  # polyethylene
         if reg:
             reg.addMaterial(m1, replace=True)
         self.addMaterial(m1)
@@ -178,7 +178,7 @@ class Block(pyg4ometry.mcnp.Cell):
         geom = pyg4ometry.mcnp.Intersection(geomBoxZ, pyg4ometry.mcnp.Intersection(geomBoxY, geomBoxX))
         # connector holes
         for s in surfaces[6:]:
-            geom = pyg4ometry.mcnp.Intersection(geom, pyg4ometry.mcnp.Complement(s))
+            geom = pyg4ometry.mcnp.Intersection(geom, s)
 
         return geom
 
