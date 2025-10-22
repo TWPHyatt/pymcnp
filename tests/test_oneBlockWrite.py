@@ -20,10 +20,10 @@ def test_oneBlockWrite(write=False):
     cVoid = pyg4ometry.mcnp.Cell(reg=reg)
 
     # SURFACES
-    s1 = pyg4ometry.mcnp.SO(25, reg=reg)
+    sSO1 = pyg4ometry.mcnp.SO(25, reg=reg)
     cWorld.addSurface(block1.geometry)  # cell2 is between block1 /
-    cWorld.addSurface(s1)  # / and s1
-    cVoid.addSurface(s1)  # cell3 is outside s1
+    cWorld.addSurface(sSO1)  # / and s1
+    cVoid.addSurface(sSO1)  # cell3 is outside s1
 
     # MATERIAL
     m2 = pyg4ometry.mcnp.Material(2, -0.001225, reg=reg)
@@ -32,10 +32,11 @@ def test_oneBlockWrite(write=False):
     cVoid.addMaterial(m0)
 
     # GEOMETRY
-    geo2 = pyg4ometry.mcnp.Intersection(s1, pyg4ometry.mcnp.Complement(block1))
-    geo3 = pyg4ometry.mcnp.Complement(s1)
-    cWorld.addGeometry(geo2)
-    cVoid.addGeometry(geo3)
+    geoOut = sSO1
+    geoIn = pyg4ometry.mcnp.Complement(sSO1)
+    geoWorld = pyg4ometry.mcnp.Intersection(geoIn, pyg4ometry.mcnp.Complement(block1))
+    cWorld.addGeometry(geoWorld)
+    cVoid.addGeometry(geoOut)
 
     # IMPORTANCE
     i0 = pyg4ometry.mcnp.IMP("p", 0)

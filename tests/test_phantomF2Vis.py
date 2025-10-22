@@ -2,7 +2,7 @@ import pyg4ometry
 import pymcnp
 
 
-def test_phantomF2(vis=False, write=False):
+def test_phantomF2Vis(vis=False, write=False):
     """
     test universal whole body phantom F2
     :param vis: visualisation
@@ -124,7 +124,7 @@ def test_phantomF2(vis=False, write=False):
 
 
 # remove comment when debugging
-test_phantomF2(vis=True, write=False)
+test_phantomF2Vis(vis=True, write=False)
 
 if __name__ == "__main__":
-    test_phantomF2(True)
+    test_phantomF2Vis(True)
