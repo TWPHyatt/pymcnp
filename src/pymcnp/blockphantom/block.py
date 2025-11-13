@@ -1,7 +1,7 @@
 import pyg4ometry
 import numpy as _np
-from ..blockphantom import utils as _utils
-from ..blockphantom import connector as _connector
+from pymcnp.blockphantom import utils as _utils
+from pymcnp.blockphantom import connector as _connector
 import time
 
 fullBlockDim = [11.0, 16.5, 5.5]  # dimensions of a full block
@@ -361,6 +361,50 @@ class Block(pyg4ometry.mcnp.Cell):
         # todo update hole status  - some holes will become uncovered and some covered
 
         return block_p
+
+    def rotateAboutConnectionPartial(self, hole, rotationSteps, reg=False):
+        """
+        rotate block around the hole local connection axis, regardless of block orientation
+        """
+
+        holePosition, holeDirection = self.holeInfo[hole]
+
+        if not self.holeStatus[hole]["connected"]:
+            raise ValueError(f"Hole {hole} has no connection to rotate around.")
+
+        holeDirection = holeDirection / _np.linalg.norm(holeDirection)
+
+        stepMagnitude = _np.linalg.norm(rotationSteps)  # convert rotationSteps to total rotation angle
+        if stepMagnitude == 0:
+            return self  # no rotation
+
+        sign = _np.sign(_np.sum(rotationSteps))  # sign of the Z component
+        angle_rad = sign * stepMagnitude * (_np.pi / 2)
+
+
+        rotationMatrix = _np.eye(3) + _np.sin(angle_rad) * _np.array([[0, -holeDirection[2], holeDirection[1]],
+                                                                      [holeDirection[2], 0, -holeDirection[0]],
+                                                                      [-holeDirection[1], holeDirection[0], 0]]) \
+                         + (1 - _np.cos(angle_rad)) * (_np.outer(holeDirection, holeDirection) - _np.eye(3))
+
+        block_p = self.transform(translation=-holePosition, rotation=[0, 0, 0])
+
+        block_p = block_p.transform(rotation=rotationMatrix, isRotationMatrix=True)
+
+        block_p = block_p.transform(translation=holePosition, rotation=[0, 0, 0])
+
+        if reg:
+            reg.addCell(block_p, replace=True)
+            reg.addSurfaces(block_p.surfaceList, replace=True)
+
+        return block_p
+
+    # todo the two functions rotateAboutConnection and rotateAboutConnectionPartial
+    #  should be combined into a single function?
+    #  convention of rotation -1 and 1 unified between the two
+
+    # todo preserve the orientation of the block in the global coordinates so the new block of
+    #  makeNewConnectedBlock will match the orientation of the old block
 
     def mesh(self):
         if self._mesh is not None:
