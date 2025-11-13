@@ -6,9 +6,9 @@ def rotationStepsToMatrix(stepsIn):
     converts a list of 90-degree step rotations [x, y, z] into a 3x3 rotation matrix
     """
 
-    if len(stepsIn) != 3 or not all(isinstance(i, int) for i in stepsIn):
-        msg = f"rotation steps must be a list of 3 integers [x, y, z]"
-        raise TypeError(msg)
+    #if len(stepsIn) != 3 or not all(isinstance(i, int) for i in stepsIn):
+    #    msg = f"rotation steps must be a list of 3 integers [x, y, z]"
+    #    raise TypeError(msg)
 
     steps = _np.array(stepsIn)
 
@@ -90,3 +90,16 @@ def rotationMatrixToAxisAndAngle(R):
     axis = axis / _np.linalg.norm(axis)
 
     return axis, _np.degrees(angle)
+
+def rotationAroundAxis(axis, angleRad):
+    """
+    Rodrigues’ rotation formula for rotation about an arbitrary axis.
+    """
+    axis = axis / _np.linalg.norm(axis)
+    K = _np.array([
+        [0, -axis[2], axis[1]],
+        [axis[2], 0, -axis[0]],
+        [-axis[1], axis[0], 0]
+    ])
+    return _np.eye(3) + _np.sin(angleRad) * K + (1 - _np.cos(angleRad)) * (K @ K)
+
