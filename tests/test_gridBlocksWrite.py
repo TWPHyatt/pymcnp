@@ -16,8 +16,8 @@ def test_gridBlocksWrite(write=False):
     # --- 4X4 GRID OF BLOCKS ---
     gridRowNum = 5
     gridColNum = 5
-    removeNum = 7
-    connectorNum = 6
+    removeNum = 8
+    connectorNum = 8
     holeOrder = [0, 1, 2, 3, 7, 9, 4, 6]
     startX, startY, zDisp = -40, -40, 0
     deltaX, deltaY = 20, 20
