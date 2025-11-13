@@ -42,7 +42,7 @@ def test_phantomF2Write(write=False):
     [b12, b12c1] = b10.makeNewConnectedBlock("full", 13, 20, makeConnector=True, reg=reg)
     [b13, b13c1] = b11.makeNewConnectedBlock("half", 11, 12, makeConnector=True, reg=reg)
     [b14, b14c1] = b12.makeNewConnectedBlock("half", 11, 21, makeConnector=True, reg=reg)
-
+    '''
     # TORSO
     [b15, b15c1] = b10.makeNewConnectedBlock("full", 14, 3, makeConnector=True, reg=reg)
     b15 = b15.rotateAboutConnection(hole=14, rotationSteps=[0, 1, 0], reg=reg)
@@ -52,15 +52,15 @@ def test_phantomF2Write(write=False):
     b17 = b17.rotateAboutConnection(hole=0, rotationSteps=[0, 1, 0], reg=reg)
     [b18, b18c1] = b17.makeNewConnectedBlock("full", 20, 13, makeConnector=True, reg=reg)
     [b19, b19c1] = b17.makeNewConnectedBlock("full", 13, 20, makeConnector=True, reg=reg)
-
+    '''
     # --- WORLD ---
     cWorld = pyg4ometry.mcnp.Cell(reg=reg)
     cVoid = pyg4ometry.mcnp.Cell(reg=reg)
 
     # SURFACES
-    blocks = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19]
+    blocks = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14]#, b15, b16, b17, b18, b19]
     connectors = [b2c1, b3c1, b4c1, b5c1, b6c1, b7c1, b8c1, b9c1, b10c1, b11c1,
-                  b12c1, b13c1, b14c1, b15c1, b16c1, b17c1, b18c1, b19c1]
+                  b12c1, b13c1, b14c1]#, b15c1, b16c1, b17c1, b18c1, b19c1]
     sSO1 = pyg4ometry.mcnp.SO(25, reg=reg)
     for b in blocks:
         cWorld.addSurface(b.geometry)
